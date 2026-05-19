@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 14 165 233;
+    --color-primary-dark: 2 132 199;
+    --color-brand-orange: 249 115 22;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply font-sans antialiased;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-gray-100; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-400 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-500; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 text-white px-4 py-2.5 rounded-lg font-medium
+           hover:bg-primary-700 active:scale-95 transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-300 px-4 py-2.5 rounded-lg font-medium
+           hover:bg-gray-50 active:scale-95 transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white px-4 py-2.5 rounded-lg font-medium
+           hover:bg-red-700 active:scale-95 transition-all duration-150;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+           placeholder:text-gray-400 transition-all duration-150
+           disabled:bg-gray-50 disabled:text-gray-400;
+  }
+
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .status-pending   { @apply badge bg-yellow-100 text-yellow-800; }
+  .status-accepted  { @apply badge bg-blue-100 text-blue-800; }
+  .status-picked_up { @apply badge bg-indigo-100 text-indigo-800; }
+  .status-in_transit { @apply badge bg-purple-100 text-purple-800; }
+  .status-delivered { @apply badge bg-green-100 text-green-800; }
+  .status-cancelled { @apply badge bg-red-100 text-red-800; }
+  .status-failed    { @apply badge bg-gray-100 text-gray-800; }
+
+  .page-header {
+    @apply text-2xl font-bold text-gray-900 mb-6;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-gray-800 mb-4;
+  }
+}
+
+@layer utilities {
+  .animate-in { animation: fadeIn 0.3s ease-out; }
+  .slide-up { animation: slideUp 0.3s ease-out; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}

@@ -1,0 +1,115 @@
+version: '3.9'
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: delivery_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-delivery_app}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - delivery_network
+
+  # ── Redis ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: delivery_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - delivery_network
+
+  # ── Backend API ─────────────────────────────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: ../docker/Dockerfile.server
+      target: ${NODE_ENV:-dev}
+    container_name: delivery_server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+      - ./server/logs:/app/logs
+    ports:
+      - '5000:5000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - delivery_network
+
+  # ── Frontend ────────────────────────────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: ../docker/Dockerfile.client
+      target: ${NODE_ENV:-dev}
+    container_name: delivery_client
+    restart: unless-stopped
+    env_file: ./client/.env.local
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - '3000:3000'
+    depends_on:
+      - server
+    networks:
+      - delivery_network
+
+  # ── Nginx (optional, for production) ───────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: delivery_nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    ports:
+      - '80:80'
+      - '443:443'
+    depends_on:
+      - server
+      - client
+    networks:
+      - delivery_network
+    profiles:
+      - production  # Only starts when: docker-compose --profile production up
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  delivery_network:
+    driver: bridge
