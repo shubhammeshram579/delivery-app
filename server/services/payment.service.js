@@ -74,11 +74,18 @@ const verifyPayment = async ({ razorpayOrderId, razorpayPaymentId, razorpaySigna
   return { message: 'Payment verified successfully', payment };
 };
 
+
+
+
 const handleWebhook = async (rawBody, signature) => {
+
   const expectedSignature = crypto
     .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
     .update(rawBody)
     .digest('hex');
+
+
+    // console.log(expectedSignature);
 
   if (expectedSignature !== signature)
     throw new ValidationError('Webhook signature mismatch');

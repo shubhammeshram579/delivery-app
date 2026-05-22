@@ -10,6 +10,7 @@ import {
   Info,
   CheckCheck,
   Trash2,
+  ExternalLink, // add this
 } from "lucide-react";
 
 import { formatDistanceToNow } from "date-fns";
@@ -47,18 +48,19 @@ const TYPE_CONFIG = {
 const FILTERS = ["all", "unread", "order", "payment", "chat", "system"];
 
 export default function NotificationDropdown({
-  open,
+ open,
   onClose,
   notifications = [],
+  loading,
   onMarkRead,
   onMarkAllRead,
   onDelete,
+  onOpenNotification,
 }) {
   const ref = useRef();
 
   const [filter, setFilter] = useState("all");
 
-  // close outside
   useEffect(() => {
     const handleClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
@@ -71,7 +73,8 @@ export default function NotificationDropdown({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [onClose]);
 
-  // filtered notifications
+  // console.log("notifications",notifications)
+
   const filteredNotifications = useMemo(() => {
     if (filter === "all") return notifications;
 
@@ -88,7 +91,6 @@ export default function NotificationDropdown({
 
   return (
     <>
-      {/* Mobile Overlay */}
       <div
         className="fixed inset-0 bg-black/40 z-40 lg:hidden"
         onClick={onClose}
@@ -164,7 +166,9 @@ export default function NotificationDropdown({
                 No notifications
               </p>
 
-              <p className="text-xs text-gray-400 mt-1">You're all caught up</p>
+              <p className="text-xs text-gray-400 mt-1">
+                You're all caught up
+              </p>
             </div>
           ) : (
             filteredNotifications.map((n) => {
@@ -202,15 +206,24 @@ export default function NotificationDropdown({
                         </p>
                       </div>
 
-                      {/* {!n.isRead && (
-                        <div className="w-2 h-2 rounded-full bg-primary-600 mt-2 flex-shrink-0" />
-                      )} */}
-
                       <div className="flex items-center gap-2">
                         {!n.isRead && (
                           <div className="w-2 h-2 rounded-full bg-primary-600 flex-shrink-0" />
                         )}
 
+                        {/* OPEN BUTTON */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+
+                            onOpenNotification(n);
+                          }}
+                          className="p-1 hover:bg-blue-50 rounded-md transition-colors group"
+                        >
+                          <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+                        </button>
+
+                        {/* DELETE BUTTON */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
