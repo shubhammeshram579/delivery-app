@@ -6,7 +6,10 @@ const { sequelize } = require("../config/database");
 
 const { Order, Driver, User, Payment, Earnings } = require("../models");
 
-const { cacheSet, cacheGet, cacheDelByPattern } = require("../config/redis");
+const {cacheSet, cacheGet, cacheDel, cacheDelByPattern } = require("../config/redis");
+
+
+const { sendEmail } = require("../utils/email");
 
 const {
   NotFoundError,
@@ -405,7 +408,8 @@ const acceptOrder = async (orderId, driverUserId) => {
 
     const order = await Order.findByPk(orderId, {
       transaction,
-      lock: true,
+      // lock: true,
+      lock: transaction.LOCK.UPDATE
     });
 
     if (!order) {
@@ -490,7 +494,8 @@ const updateOrderStatus = async (
     const order = await Order.findByPk(orderId, {
       transaction,
 
-      lock: true,
+      // lock: true,
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (!order) {
@@ -678,7 +683,8 @@ const cancelOrder = async (orderId, userId, reason) => {
 
       transaction,
 
-      lock: true,
+      // lock: true,
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (!order) {
@@ -768,6 +774,274 @@ const cancelOrder = async (orderId, userId, reason) => {
   }
 };
 
+
+const validateDriverOrder = async (
+  orderId,
+  driverUserId,
+  transaction = null
+) => {
+  const driver = await Driver.findOne({
+    where: { userId: driverUserId },
+    transaction,
+  });
+
+  if (!driver) {
+    throw new NotFoundError("Driver profile");
+  }
+
+  const order = await Order.findByPk(orderId, {
+    transaction,
+    lock: transaction ? true : undefined,
+  });
+
+  if (!order) {
+    throw new NotFoundError("Order");
+  }
+
+  if (String(order.driverId) !== String(driver.id)) {
+    throw new AuthorizationError("Not your order");
+  }
+
+  return { order, driver };
+};
+
+
+
+
+const uploadDeliveryProof = async (
+  orderId,
+  driverUserId,
+  file
+) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { order, driver } = await validateDriverOrder(
+      orderId,
+      driverUserId,
+      transaction
+    );
+
+    if (order.status !== "in_transit") {
+      throw new ValidationError(
+        "Order must be in transit to upload proof"
+      );
+    }
+
+    const existingEarning = await Earnings.findOne({
+      where: { orderId: order.id },
+      transaction,
+    });
+
+    if (existingEarning) {
+      throw new ValidationError(
+        "Earnings already processed"
+      );
+    }
+
+    if (!file) {
+      throw new ValidationError(
+        "Delivery proof image is required"
+      );
+    }
+
+    const proofUrl = file?.path || null;
+
+    const platformFee = parseFloat(
+      (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2)
+    );
+
+    const netEarning = parseFloat(
+      (order.deliveryFee - platformFee).toFixed(2)
+    );
+
+    await order.update(
+      {
+        deliveryProofImage: proofUrl,
+        status: "delivered",
+        deliveredAt: new Date(),
+      },
+      { transaction }
+    );
+
+    await Earnings.create(
+      {
+        driverId: driver.id,
+        orderId: order.id,
+        amount: order.deliveryFee,
+        platformFee,
+        netEarning,
+      },
+      { transaction }
+    );
+
+    await driver.increment(
+      {
+        totalDeliveries: 1,
+        totalEarnings: netEarning,
+      },
+      { transaction }
+    );
+
+    await driver.update(
+      { isAvailable: true },
+      { transaction }
+    );
+
+    await transaction.commit();
+
+    await cacheDelByPattern(`orders:*`);
+
+    await sendNotification(order.customerId, {
+      title: "📦 Order Delivered!",
+      body: `Your order #${order.orderNumber} has been delivered.`,
+      type: "order",
+      data: { orderId: order.id },
+    });
+
+    return order;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+const markCashCollected = async (
+  orderId,
+  driverUserId
+) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { order } = await validateDriverOrder(
+      orderId,
+      driverUserId,
+      transaction
+    );
+
+    if (order.paymentMethod !== "cash") {
+      throw new ValidationError(
+        "This order uses online payment"
+      );
+    }
+
+    if (order.cashCollected) {
+      throw new ValidationError(
+        "Cash already marked as collected"
+      );
+    }
+
+    await order.update(
+      {
+        cashCollected: true,
+        cashCollectedAt: new Date(),
+      },
+      { transaction }
+    );
+
+    await Payment.update(
+      {
+        status: "success",
+        method: "cod",
+        paidAt: new Date(),
+      },
+      {
+        where: { orderId: order.id },
+        transaction,
+      }
+    );
+
+    await transaction.commit();
+    await cacheDelByPattern(`orders:*`);
+
+    return true;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+
+const generatePickupOtp = async (
+  orderId,
+  driverUserId
+) => {
+  const { order } = await validateDriverOrder(
+    orderId,
+    driverUserId
+  );
+
+  const fullOrder = await Order.findByPk(orderId, {
+    include: [
+      {
+        model: User,
+        as: "customer",
+        attributes: ["id", "name", "email"],
+      },
+    ],
+  });
+
+  const otp = Math.floor(
+    100000 + Math.random() * 900000
+  ).toString();
+
+  await cacheSet(
+    `pickup-otp:${order.id}`,
+    otp,
+    600
+  );
+
+  await sendEmail({
+    to: fullOrder.customer.email,
+    subject: "Pickup OTP — DeliverPro",
+    template: "verify-email",
+    data: {
+      name: fullOrder.customer.name,
+      otp,
+    },
+  });
+
+  return true;
+};
+
+
+
+const verifyPickupOtp = async (
+  orderId,
+  otp
+) => {
+  const order = await Order.findByPk(orderId);
+
+//   const order = await Order.findOne({
+//   where: {
+//     id: orderId,
+//     customerId,
+//   },
+// });
+
+  if (!order) {
+    throw new NotFoundError("Order");
+  }
+
+  const storedOtp = await cacheGet(
+    `pickup-otp:${order.id}`
+  );
+
+  if (!storedOtp || storedOtp !== otp) {
+    throw new ValidationError(
+      "Invalid or expired OTP"
+    );
+  }
+
+  await order.update({
+    pickupOtpVerified: true,
+  });
+
+  await cacheDel(`pickup-otp:${order.id}`);
+
+  return order;
+};
+
 module.exports = {
   createOrder,
   getOrders,
@@ -777,4 +1051,10 @@ module.exports = {
   findNearestDriver,
   updateOrderStatus,
   cancelOrder,
+
+  // new api
+  uploadDeliveryProof,
+  markCashCollected,
+  generatePickupOtp,
+  verifyPickupOtp,
 };

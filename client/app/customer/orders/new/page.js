@@ -45,6 +45,12 @@ export default function NewOrderPage() {
   //   if (currentOrder) router.push(`/customer/orders/${currentOrder.id}`);
   // }, [currentOrder]);
 
+  useEffect(() => {
+  if (currentOrder?.id) {
+    router.push(`/customer/orders/${currentOrder.id}`);
+  }
+}, [currentOrder, router]);
+
 
 
   // Initialize Google Maps autocomplete
@@ -80,7 +86,7 @@ export default function NewOrderPage() {
 
     setupAutocomplete('pickupInput', setPickupCoords, 'pickupAddress');
     setupAutocomplete('dropInput', setDropCoords, 'dropAddress');
-  }, [mapLoaded]);
+  }, [mapLoaded, pickupCoords, dropCoords, drawRoute, setValue]);
 
   // Estimate price when both coords and weight available
   const weight = watch('packageWeight');
@@ -106,28 +112,55 @@ export default function NewOrderPage() {
   }, [pickupCoords, dropCoords, weight]);
 
 
-    const handelOrder = () => {
-     if (currentOrder) router.push(`/customer/orders/${currentOrder.id}`);
-  } 
+  //   const handelOrder = () => {
+  //    if (currentOrder) router.push(`/customer/orders/${currentOrder.id}`);
+  // } 
+
+  // const onSubmit = async (data) => {
+  //   if (!pickupCoords || !dropCoords) {
+  //     setServerError('Please select valid addresses from the suggestions');
+  //     return;
+  //   }
+  //   setServerError(null);
+    
+  //   dispatch(createOrder({
+  //     ...data,
+  //     pickupLat: pickupCoords.lat,
+  //     pickupLng: pickupCoords.lng,
+  //     dropLat: dropCoords.lat,
+  //     dropLng: dropCoords.lng,
+  //   }));
+
+  //   // handelOrder()
+    
+  // };
+
 
   const onSubmit = async (data) => {
+  try {
     if (!pickupCoords || !dropCoords) {
-      setServerError('Please select valid addresses from the suggestions');
+      setServerError('Please select valid addresses from suggestions');
       return;
     }
-    setServerError(null);
-    
-    dispatch(createOrder({
-      ...data,
-      pickupLat: pickupCoords.lat,
-      pickupLng: pickupCoords.lng,
-      dropLat: dropCoords.lat,
-      dropLng: dropCoords.lng,
-    }));
 
-    handelOrder()
-    
-  };
+    setServerError(null);
+
+    await dispatch(
+      createOrder({
+        ...data,
+        pickupLat: pickupCoords.lat,
+        pickupLng: pickupCoords.lng,
+        dropLat: dropCoords.lat,
+        dropLng: dropCoords.lng,
+      })
+    ).unwrap();
+
+  } catch (error) {
+    setServerError(
+      error?.message || 'Failed to create order'
+    );
+  }
+};
 
   return (
     <DashboardLayout role="customer" title="Place Order">

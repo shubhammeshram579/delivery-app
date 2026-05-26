@@ -21,6 +21,16 @@ export const orderService = {
   updateStatus: (id, status)     => api.patch(`/orders/${id}/status`, { status }),
   cancelOrder:  (id, reason)     => api.patch(`/orders/${id}/cancel`, { reason }),
   rateOrder:    (id, data)       => api.post(`/orders/${id}/rate`, data),
+
+
+  // New
+  uploadDeliveryProof: (id, formData) =>
+    api.post(`/orders/${id}/delivery-proof`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  markCashCollected:  (id)            => api.patch(`/orders/${id}/cash-collected`),
+  generatePickupOtp:  (id)            => api.post(`/orders/${id}/pickup-otp`),
+  verifyPickupOtp:    (id, otp)       => api.post(`/orders/${id}/verify-pickup-otp`, { otp }),
 };
 
 // ── Payments ──────────────────────────────────────────────

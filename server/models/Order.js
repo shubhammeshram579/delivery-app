@@ -1,92 +1,3 @@
-// const { DataTypes } = require('sequelize');
-// const { sequelize } = require('../config/database');
-
-// const Order = sequelize.define('Order', {
-//   id: {
-//     type: DataTypes.UUID,
-//     defaultValue: DataTypes.UUIDV4,
-//     primaryKey: true,
-//   },
-//   orderNumber: {
-//     type: DataTypes.STRING,
-//     unique: true,
-//   },
-//   customerId: {
-//     type: DataTypes.UUID,
-//     allowNull: false,
-//     references: { model: 'users', key: 'id' },
-//   },
-//   driverId: {
-//     type: DataTypes.UUID,
-//     defaultValue: null,
-//     references: { model: 'drivers', key: 'id' },
-//   },
-
-//   // Pickup details
-//   pickupAddress: { type: DataTypes.TEXT, allowNull: false },
-//   pickupLat: { type: DataTypes.FLOAT, allowNull: false },
-//   pickupLng: { type: DataTypes.FLOAT, allowNull: false },
-
-//   // Drop details
-//   dropAddress: { type: DataTypes.TEXT, allowNull: false },
-//   dropLat: { type: DataTypes.FLOAT, allowNull: false },
-//   dropLng: { type: DataTypes.FLOAT, allowNull: false },
-
-//   // Package info
-//   packageWeight: { type: DataTypes.FLOAT, allowNull: false },
-//   packageDescription: { type: DataTypes.TEXT, defaultValue: null },
-//   deliveryInstructions: { type: DataTypes.TEXT, defaultValue: null },
-
-//   // Status lifecycle
-//   status: {
-//     type: DataTypes.ENUM(
-//       'pending',      // order placed, awaiting driver
-//       'accepted',     // driver accepted
-//       'picked_up',    // driver picked package
-//       'in_transit',   // on the way
-//       'delivered',    // successfully delivered
-//       'cancelled',    // cancelled by customer/admin
-//       'failed'        // delivery failed
-//     ),
-//     defaultValue: 'pending',
-//   },
-
-//   // Pricing
-//   distance: { type: DataTypes.FLOAT, defaultValue: null },       // km
-//   estimatedTime: { type: DataTypes.INTEGER, defaultValue: null }, // minutes
-//   basePrice: { type: DataTypes.FLOAT, allowNull: false },
-//   deliveryFee: { type: DataTypes.FLOAT, allowNull: false },
-//   totalAmount: { type: DataTypes.FLOAT, allowNull: false },
-
-//   // Proof of delivery
-//   deliveryProofImage: { type: DataTypes.STRING, defaultValue: null },
-//   deliverySignature: { type: DataTypes.STRING, defaultValue: null },
-
-//   // Timestamps for each status
-//   acceptedAt: { type: DataTypes.DATE, defaultValue: null },
-//   pickedUpAt: { type: DataTypes.DATE, defaultValue: null },
-//   deliveredAt: { type: DataTypes.DATE, defaultValue: null },
-//   cancelledAt: { type: DataTypes.DATE, defaultValue: null },
-
-//   cancelReason: { type: DataTypes.TEXT, defaultValue: null },
-
-//   // Rating
-//   customerRating: { type: DataTypes.FLOAT, defaultValue: null },
-//   customerReview: { type: DataTypes.TEXT, defaultValue: null },
-// }, {
-//   tableName: 'orders',
-//   timestamps: true,
-//   hooks: {
-//     beforeCreate: (order) => {
-//       // Generate human-readable order number
-//       order.orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-//     },
-//   },
-// });
-
-// module.exports = Order;
-
-
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -154,6 +65,30 @@ const Order = sequelize.define('Order', {
   // Rating
   customerRating: { type: DataTypes.FLOAT, defaultValue: null },
   customerReview: { type: DataTypes.TEXT, defaultValue: null },
+
+  
+  // Add these fields to Order model (after status field)
+paymentMethod: {
+  type: DataTypes.ENUM('online', 'cash'),
+  defaultValue: 'online',
+},
+cashCollected: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false,
+},
+cashCollectedAt: {
+  type: DataTypes.DATE,
+  defaultValue: null,
+},
+pickupOtp: {
+  type: DataTypes.STRING(6),
+  defaultValue: null,
+},
+pickupOtpVerified: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false,
+},
+
 }, {
   tableName: 'orders',
   timestamps: true,

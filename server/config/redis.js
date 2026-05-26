@@ -39,9 +39,30 @@ const cacheDel = async (key) => {
   await getRedis().del(key);
 };
 
+// const cacheDelByPattern = async (pattern) => {
+//   const keys = await getRedis().keys(pattern);
+//   if (keys.length > 0) await getRedis().del(keys);
+// };
+
 const cacheDelByPattern = async (pattern) => {
-  const keys = await getRedis().keys(pattern);
-  if (keys.length > 0) await getRedis().del(keys);
+  const redis = getRedis();
+
+  let cursor = 0;
+
+  do {
+    const reply = await redis.scan(cursor, {
+      MATCH: pattern,
+      COUNT: 100,
+    });
+
+    cursor = reply.cursor;
+
+    const keys = reply.keys;
+
+    if (keys.length) {
+      await redis.del(keys);
+    }
+  } while (cursor !== 0);
 };
 
 module.exports = { connectRedis, getRedis, cacheSet, cacheGet, cacheDel, cacheDelByPattern };
