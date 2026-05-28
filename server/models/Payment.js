@@ -71,7 +71,7 @@ const Payment = sequelize.define('Payment', {
   amount:   { type: DataTypes.FLOAT, allowNull: false },
   currency: { type: DataTypes.STRING(3), defaultValue: 'INR' },
   status: {
-    type: DataTypes.ENUM('pending', 'success', 'failed', 'refunded'),
+    type: DataTypes.ENUM('pending', 'success', 'failed', 'refunded','pending_cash_collection'),
     defaultValue: 'pending',
   },
   method: {

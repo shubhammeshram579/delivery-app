@@ -1013,11 +1013,12 @@ export default function CustomerOrderDetailPage() {
             </div>
 
             {/* Payment method choice — only show before payment */}
-            {!isPaid && !isCancelled && order.status === 'pending' && (
+            {/* {!isPaid && !isCancelled && order.status === 'pending' && (
               <div className="mb-4">
                 <p className="text-xs text-gray-500 mb-2 font-medium">Payment Method</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
+                  
                     onClick={() => setPayMethod('online')}
                     className={`flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
                       payMethod === 'online'
@@ -1039,7 +1040,7 @@ export default function CustomerOrderDetailPage() {
                   </button>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Payment status */}
             {isPaid ? (
@@ -1086,7 +1087,7 @@ export default function CustomerOrderDetailPage() {
                   <Clock className="h-4 w-4 text-yellow-600" />
                   <p className="text-sm text-yellow-700 font-medium">Payment pending</p>
                 </div>
-                {payMethod === 'online' && (
+                {payMethod === 'online' &&  (
                   <>
                     <button onClick={handlePayOnline} disabled={payLoading} className="btn-primary w-full py-3 flex items-center justify-center gap-2 text-base">
                       {payLoading
@@ -1096,7 +1097,7 @@ export default function CustomerOrderDetailPage() {
                     </button>
                     <p className="text-xs text-gray-400 text-center">Secured by Razorpay · UPI · Cards · Wallets</p>
                   </>
-                )}
+                ) }
               </div>
             )}
           </div>

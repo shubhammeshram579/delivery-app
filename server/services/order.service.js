@@ -6,8 +6,12 @@ const { sequelize } = require("../config/database");
 
 const { Order, Driver, User, Payment, Earnings } = require("../models");
 
-const {cacheSet, cacheGet, cacheDel, cacheDelByPattern } = require("../config/redis");
-
+const {
+  cacheSet,
+  cacheGet,
+  cacheDel,
+  cacheDelByPattern,
+} = require("../config/redis");
 
 const { sendEmail } = require("../utils/email");
 
@@ -184,7 +188,22 @@ const createOrder = async (customerId, orderData) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { pickupLat, pickupLng, dropLat, dropLng, packageWeight } = orderData;
+    const {
+      pickupLat,
+      pickupLng,
+      dropLat,
+      dropLng,
+      packageWeight,
+      paymentMethod,
+    } = orderData;
+
+    if (!orderData.receiverName) {
+      throw new ApiError(400, "Receiver name required");
+    }
+
+    if (!orderData.receiverPhone) {
+      throw new ApiError(400, "Receiver phone required");
+    }
 
     const routeInfo = await getRouteInfo(
       pickupLat,
@@ -203,6 +222,8 @@ const createOrder = async (customerId, orderData) => {
 
         ...orderData,
 
+        paymentMethod,
+
         distance: routeInfo.distanceKm,
 
         estimatedTime: routeInfo.durationMin,
@@ -215,19 +236,24 @@ const createOrder = async (customerId, orderData) => {
 
         acceptedAt: nearestDriver ? new Date() : null,
       },
-
       {
         transaction,
       },
     );
 
+    const paymentProviderMap = {
+      online: "razorpay",
+      cash: "cod",
+    };
+
     await Payment.create(
       {
         orderId: order.id,
-
         customerId,
-
         amount: pricing.totalAmount,
+        method: paymentProviderMap[paymentMethod],
+        status:
+          paymentMethod === "cash" ? "pending_cash_collection" : "pending",
       },
 
       {
@@ -409,7 +435,7 @@ const acceptOrder = async (orderId, driverUserId) => {
     const order = await Order.findByPk(orderId, {
       transaction,
       // lock: true,
-      lock: transaction.LOCK.UPDATE
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (!order) {
@@ -774,11 +800,10 @@ const cancelOrder = async (orderId, userId, reason) => {
   }
 };
 
-
 const validateDriverOrder = async (
   orderId,
   driverUserId,
-  transaction = null
+  transaction = null,
 ) => {
   const driver = await Driver.findOne({
     where: { userId: driverUserId },
@@ -805,27 +830,18 @@ const validateDriverOrder = async (
   return { order, driver };
 };
 
-
-
-
-const uploadDeliveryProof = async (
-  orderId,
-  driverUserId,
-  file
-) => {
+const uploadDeliveryProof = async (orderId, driverUserId, file) => {
   const transaction = await sequelize.transaction();
 
   try {
     const { order, driver } = await validateDriverOrder(
       orderId,
       driverUserId,
-      transaction
+      transaction,
     );
 
     if (order.status !== "in_transit") {
-      throw new ValidationError(
-        "Order must be in transit to upload proof"
-      );
+      throw new ValidationError("Order must be in transit to upload proof");
     }
 
     const existingEarning = await Earnings.findOne({
@@ -834,26 +850,20 @@ const uploadDeliveryProof = async (
     });
 
     if (existingEarning) {
-      throw new ValidationError(
-        "Earnings already processed"
-      );
+      throw new ValidationError("Earnings already processed");
     }
 
     if (!file) {
-      throw new ValidationError(
-        "Delivery proof image is required"
-      );
+      throw new ValidationError("Delivery proof image is required");
     }
 
     const proofUrl = file?.path || null;
 
     const platformFee = parseFloat(
-      (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2)
+      (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2),
     );
 
-    const netEarning = parseFloat(
-      (order.deliveryFee - platformFee).toFixed(2)
-    );
+    const netEarning = parseFloat((order.deliveryFee - platformFee).toFixed(2));
 
     await order.update(
       {
@@ -861,7 +871,7 @@ const uploadDeliveryProof = async (
         status: "delivered",
         deliveredAt: new Date(),
       },
-      { transaction }
+      { transaction },
     );
 
     await Earnings.create(
@@ -872,7 +882,7 @@ const uploadDeliveryProof = async (
         platformFee,
         netEarning,
       },
-      { transaction }
+      { transaction },
     );
 
     await driver.increment(
@@ -880,13 +890,10 @@ const uploadDeliveryProof = async (
         totalDeliveries: 1,
         totalEarnings: netEarning,
       },
-      { transaction }
+      { transaction },
     );
 
-    await driver.update(
-      { isAvailable: true },
-      { transaction }
-    );
+    await driver.update({ isAvailable: true }, { transaction });
 
     await transaction.commit();
 
@@ -906,29 +913,22 @@ const uploadDeliveryProof = async (
   }
 };
 
-const markCashCollected = async (
-  orderId,
-  driverUserId
-) => {
+const markCashCollected = async (orderId, driverUserId) => {
   const transaction = await sequelize.transaction();
 
   try {
     const { order } = await validateDriverOrder(
       orderId,
       driverUserId,
-      transaction
+      transaction,
     );
 
     if (order.paymentMethod !== "cash") {
-      throw new ValidationError(
-        "This order uses online payment"
-      );
+      throw new ValidationError("This order uses online payment");
     }
 
     if (order.cashCollected) {
-      throw new ValidationError(
-        "Cash already marked as collected"
-      );
+      throw new ValidationError("Cash already marked as collected");
     }
 
     await order.update(
@@ -936,7 +936,7 @@ const markCashCollected = async (
         cashCollected: true,
         cashCollectedAt: new Date(),
       },
-      { transaction }
+      { transaction },
     );
 
     await Payment.update(
@@ -948,7 +948,7 @@ const markCashCollected = async (
       {
         where: { orderId: order.id },
         transaction,
-      }
+      },
     );
 
     await transaction.commit();
@@ -961,15 +961,8 @@ const markCashCollected = async (
   }
 };
 
-
-const generatePickupOtp = async (
-  orderId,
-  driverUserId
-) => {
-  const { order } = await validateDriverOrder(
-    orderId,
-    driverUserId
-  );
+const generatePickupOtp = async (orderId, driverUserId) => {
+  const { order } = await validateDriverOrder(orderId, driverUserId);
 
   const fullOrder = await Order.findByPk(orderId, {
     include: [
@@ -981,15 +974,9 @@ const generatePickupOtp = async (
     ],
   });
 
-  const otp = Math.floor(
-    100000 + Math.random() * 900000
-  ).toString();
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  await cacheSet(
-    `pickup-otp:${order.id}`,
-    otp,
-    600
-  );
+  await cacheSet(`pickup-otp:${order.id}`, otp, 600);
 
   await sendEmail({
     to: fullOrder.customer.email,
@@ -1004,33 +991,24 @@ const generatePickupOtp = async (
   return true;
 };
 
-
-
-const verifyPickupOtp = async (
-  orderId,
-  otp
-) => {
+const verifyPickupOtp = async (orderId, otp) => {
   const order = await Order.findByPk(orderId);
 
-//   const order = await Order.findOne({
-//   where: {
-//     id: orderId,
-//     customerId,
-//   },
-// });
+  //   const order = await Order.findOne({
+  //   where: {
+  //     id: orderId,
+  //     customerId,
+  //   },
+  // });
 
   if (!order) {
     throw new NotFoundError("Order");
   }
 
-  const storedOtp = await cacheGet(
-    `pickup-otp:${order.id}`
-  );
+  const storedOtp = await cacheGet(`pickup-otp:${order.id}`);
 
   if (!storedOtp || storedOtp !== otp) {
-    throw new ValidationError(
-      "Invalid or expired OTP"
-    );
+    throw new ValidationError("Invalid or expired OTP");
   }
 
   await order.update({

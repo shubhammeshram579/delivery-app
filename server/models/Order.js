@@ -70,7 +70,7 @@ const Order = sequelize.define('Order', {
   // Add these fields to Order model (after status field)
 paymentMethod: {
   type: DataTypes.ENUM('online', 'cash'),
-  defaultValue: 'online',
+  defaultValue: 'cash',
 },
 cashCollected: {
   type: DataTypes.BOOLEAN,
@@ -85,6 +85,45 @@ pickupOtp: {
   defaultValue: null,
 },
 pickupOtpVerified: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false,
+},
+
+
+// Receiver Details
+receiverName: {
+  type: DataTypes.STRING,
+  allowNull: true,
+},
+
+receiverPhone: {
+  type: DataTypes.STRING,
+  allowNull: true,
+},
+
+receiverAlternatePhone: {
+  type: DataTypes.STRING,
+  defaultValue: null,
+},
+
+// Package Details
+packageCategory: {
+  type: DataTypes.ENUM(
+    'documents',
+    'electronics',
+    'food',
+    'clothes',
+    'other'
+  ),
+  defaultValue: 'other',
+},
+
+packageValue: {
+  type: DataTypes.FLOAT,
+  defaultValue: 0,
+},
+
+isFragile: {
   type: DataTypes.BOOLEAN,
   defaultValue: false,
 },
