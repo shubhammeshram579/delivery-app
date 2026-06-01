@@ -844,6 +844,12 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       throw new ValidationError("Order must be in transit to upload proof");
     }
 
+    if (!order.deliveryOtpVerified) {
+      throw new ValidationError(
+          "Receiver OTP verification required first"
+      );
+    }
+
     const existingEarning = await Earnings.findOne({
       where: { orderId: order.id },
       transaction,
@@ -991,18 +997,11 @@ const generatePickupOtp = async (orderId, driverUserId) => {
   return true;
 };
 
-const verifyPickupOtp = async (orderId, otp) => {
-  const order = await Order.findByPk(orderId);
+const verifyPickupOtp = async (orderId, driverUserId, otp) => {
+  const { order } = await validateDriverOrder(orderId, driverUserId);
 
-  //   const order = await Order.findOne({
-  //   where: {
-  //     id: orderId,
-  //     customerId,
-  //   },
-  // });
-
-  if (!order) {
-    throw new NotFoundError("Order");
+  if (order.status !== "accepted") {
+    throw new ValidationError("Order is not ready for pickup");
   }
 
   const storedOtp = await cacheGet(`pickup-otp:${order.id}`);
@@ -1013,11 +1012,66 @@ const verifyPickupOtp = async (orderId, otp) => {
 
   await order.update({
     pickupOtpVerified: true,
+    status: "picked_up",
+    pickedUpAt: new Date(),
   });
 
   await cacheDel(`pickup-otp:${order.id}`);
 
   return order;
+};
+
+const generateDeliveryOtp = async (orderId, driverUserId) => {
+  const { order } = await validateDriverOrder(orderId, driverUserId);
+
+  if (order.status !== "in_transit") {
+    throw new ValidationError("Order must be in transit");
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  await cacheSet(`delivery-otp:${order.id}`, otp, 600);
+
+  console.log(`delevery:otp ${otp}`)
+
+  // Send SMS to receiver phone
+  // Twilio / MSG91
+
+  return true;
+};
+
+const verifyDeliveryOtp = async (orderId, driverUserId, otp) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { order, driver } = await validateDriverOrder(
+      orderId,
+      driverUserId,
+      transaction,
+    );
+
+    const storedOtp = await cacheGet(`delivery-otp:${order.id}`);
+
+    if (!storedOtp || storedOtp !== otp) {
+      throw new ValidationError("Invalid OTP");
+    }
+
+    await order.update(
+      {
+        deliveryOtpVerified: true,
+      },
+      { transaction },
+    );
+
+    await cacheDel(`delivery-otp:${order.id}`);
+
+    await transaction.commit();
+
+    return order;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 module.exports = {
@@ -1035,4 +1089,7 @@ module.exports = {
   markCashCollected,
   generatePickupOtp,
   verifyPickupOtp,
+
+  generateDeliveryOtp,
+  verifyDeliveryOtp,
 };

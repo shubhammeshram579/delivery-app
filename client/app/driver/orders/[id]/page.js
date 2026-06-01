@@ -15,7 +15,6 @@
 // import { Navigation } from 'lucide-react';
 // import { useGoogleMaps } from '../../../../hooks';
 
-
 // export default function DriverOrderDetailPage() {
 //   useRequireAuth('driver');
 //   const { id }   = useParams();
@@ -30,7 +29,6 @@
 //   const [chatInput,  setChatInput]  = useState('');
 //   const messagesEndRef = useRef(null);
 
-
 //   const mapRef = useRef(null);
 
 // const {
@@ -39,9 +37,6 @@
 //   addMarker,
 //   drawRoute
 // } = useGoogleMaps(mapRef);
-
-
-
 
 // useEffect(() => {
 //   if (!map || !order) return;
@@ -72,7 +67,6 @@
 //   );
 
 // }, [map, order]);
-
 
 // useEffect(() => {
 
@@ -162,7 +156,6 @@
 //   //   return unsub;
 //   // }, [onChatMessage]);
 
-
 // //   useEffect(() => {
 // //   const unsub = onChatMessage((msg) => {
 
@@ -184,7 +177,6 @@
 // //   return unsub;
 
 // // }, [onChatMessage, id, user]);
-
 
 // useEffect(() => {
 
@@ -244,7 +236,6 @@
 //   //   ]);
 //   //   setChatInput('');
 //   // };
-
 
 //   const sendMsg = () => {
 //   if (!chatInput.trim()) return;
@@ -327,7 +318,6 @@
 //           </div>
 //         </div>
 
-
 //         <div className="card overflow-hidden">
 //   <div
 //     ref={mapRef}
@@ -352,7 +342,6 @@
 //   </div>
 // </div>
 
-
 // {order.deliveryInstructions && (
 //   <div className="card p-5">
 //     <h3 className="font-semibold mb-2">
@@ -374,14 +363,14 @@
 //             </div>
 //             <div className="flex-1">
 //               <p className="text-sm font-medium text-gray-900">{order.customer?.name}</p>
-              
+
 //               <a  href={`tel:${order.customer?.phone}`}
 //                 className="text-xs text-primary-600 hover:underline"
 //               >
 //                 {order.customer?.phone}
 //               </a>
 //             </div>
-            
+
 //              <a href={`tel:${order.customer?.phone}`}
 //               className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center"
 //             >
@@ -505,77 +494,100 @@
 //   );
 // }
 
-
-'use client';
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useParams, useRouter } from 'next/navigation';
+"use client";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useParams, useRouter } from "next/navigation";
 import {
-  MapPin, MessageSquare, Phone, Send,
-  Navigation, Camera, Banknote, CheckCircle,
-  KeyRound, Upload, IndianRupee, Clock,
-} from 'lucide-react';
-import { fetchOrderById, selectCurrentOrder } from '../../../../redux/slices/orderSlice';
-import { selectUser } from '../../../../redux/slices/authSlice';
-import { useRequireAuth } from '../../../../components/shared/AuthGuard';
-import { DashboardLayout } from '../../../../components/shared/Layout';
-import { StatusBadge, LoadingSpinner } from '../../../../components/ui';
-import { useSocket } from '../../../../hooks/useSocket';
-import { useGeolocation } from '../../../../hooks';
-import { orderService, chatService } from '../../../../services/index';
-import toast from 'react-hot-toast';
+  MapPin,
+  MessageSquare,
+  Phone,
+  Send,
+  Navigation,
+  Camera,
+  Banknote,
+  CheckCircle,
+  KeyRound,
+  Upload,
+  IndianRupee,
+  Clock,
+} from "lucide-react";
+import {
+  fetchOrderById,
+  selectCurrentOrder,
+} from "../../../../redux/slices/orderSlice";
+import { selectUser } from "../../../../redux/slices/authSlice";
+import { useRequireAuth } from "../../../../components/shared/AuthGuard";
+import { DashboardLayout } from "../../../../components/shared/Layout";
+import { StatusBadge, LoadingSpinner } from "../../../../components/ui";
+import { useSocket } from "../../../../hooks/useSocket";
+import { useGeolocation } from "../../../../hooks";
+import { orderService, chatService } from "../../../../services/index";
+import toast from "react-hot-toast";
+
+console.log(process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY);
 
 // ── Google Maps helpers ────────────────────────────────────
-const openGoogleMapsNavigation = (destLat, destLng, label = 'Destination') => {
+const openGoogleMapsNavigation = (destLat, destLng, label = "Destination") => {
   const url = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}&travelmode=driving`;
-  window.open(url, '_blank');
+  window.open(url, "_blank");
 };
 
 // Status flow config
 const STATUS_ACTIONS = {
-  accepted:   { label: '📦 Mark as Picked Up',   next: 'picked_up'  },
-  picked_up:  { label: '🚗 Mark In Transit',      next: 'in_transit' },
-  in_transit: { label: '✅ Mark as Delivered',    next: 'delivered'  },
+  accepted: { label: "📦 Mark as Picked Up", next: "picked_up" },
+  picked_up: { label: "🚗 Mark In Transit", next: "in_transit" },
+  in_transit: { label: "✅ Mark as Delivered", next: "delivered" },
 };
 
 export default function DriverOrderDetailPage() {
-  useRequireAuth('driver');
-  const { id }   = useParams();
+  useRequireAuth("driver");
+  const { id } = useParams();
   const dispatch = useDispatch();
-  const order    = useSelector(selectCurrentOrder);
-  const user     = useSelector(selectUser);
+  const order = useSelector(selectCurrentOrder);
+  const user = useSelector(selectUser);
   const { location } = useGeolocation(true); // watch GPS
 
-  const { joinOrderRoom, leaveOrderRoom, sendChatMessage, onChatMessage, updateLocation } = useSocket();
+  const {
+    joinOrderRoom,
+    leaveOrderRoom,
+    sendChatMessage,
+    onChatMessage,
+    updateLocation,
+  } = useSocket();
 
   // Chat state
-  const [messages,  setMessages]  = useState([]);
-  const [chatInput, setChatInput] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
   const messagesEndRef = useRef(null);
 
   // Map state
-  const mapRef         = useRef(null);
+  const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const driverMarkerRef= useRef(null);
+  const driverMarkerRef = useRef(null);
   const [mapReady, setMapReady] = useState(false);
 
   // OTP state
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpInput,     setOtpInput]     = useState('');
-  const [otpLoading,   setOtpLoading]   = useState(false);
-  const [otpSent,      setOtpSent]      = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
 
   // Proof photo state
-  const [showProofModal,  setShowProofModal]  = useState(false);
-  const [proofFile,       setProofFile]       = useState(null);
-  const [proofPreview,    setProofPreview]    = useState(null);
-  const [proofLoading,    setProofLoading]    = useState(false);
+  const [showProofModal, setShowProofModal] = useState(false);
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState(null);
+  const [proofLoading, setProofLoading] = useState(false);
 
   // Cash collection state
   const [cashLoading, setCashLoading] = useState(false);
 
   // Status update loading
   const [statusLoading, setStatusLoading] = useState(false);
+
+  const [showDelOtpModal, setShowDelOtpModal] = useState(false);
+  const [deliveryOtpSent, setDeliveryOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
 
   // ── Load order ─────────────────────────────────────────
   useEffect(() => {
@@ -592,7 +604,8 @@ export default function DriverOrderDetailPage() {
   // ── Send GPS location updates every 5s ────────────────
   useEffect(() => {
     if (!location || !order) return;
-    if (!['accepted', 'picked_up', 'in_transit'].includes(order?.status)) return;
+    if (!["accepted", "picked_up", "in_transit"].includes(order?.status))
+      return;
     updateLocation(location.lat, location.lng, id);
   }, [location, order, id, updateLocation]);
 
@@ -603,39 +616,47 @@ export default function DriverOrderDetailPage() {
     const initMap = () => {
       const center = { lat: order.pickupLat, lng: order.pickupLng };
       const map = new window.google.maps.Map(mapRef.current, {
-        zoom: 13, center,
-        mapTypeControl: false, streetViewControl: false, fullscreenControl: true,
+        zoom: 13,
+        center,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
       });
       mapInstanceRef.current = map;
 
       // Pickup marker (green)
       new window.google.maps.Marker({
         position: { lat: order.pickupLat, lng: order.pickupLng },
-        map, title: 'Pickup',
-        icon: { url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' },
+        map,
+        title: "Pickup",
+        icon: { url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png" },
       });
 
       // Drop marker (red)
       new window.google.maps.Marker({
         position: { lat: order.dropLat, lng: order.dropLng },
-        map, title: 'Drop',
-        icon: { url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png' },
+        map,
+        title: "Drop",
+        icon: { url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png" },
       });
 
       // Draw route
-      const directionsService  = new window.google.maps.DirectionsService();
+      const directionsService = new window.google.maps.DirectionsService();
       const directionsRenderer = new window.google.maps.DirectionsRenderer({
         suppressMarkers: true,
-        polylineOptions: { strokeColor: '#0284c7', strokeWeight: 4 },
+        polylineOptions: { strokeColor: "#0284c7", strokeWeight: 4 },
       });
       directionsRenderer.setMap(map);
-      directionsService.route({
-        origin:      { lat: order.pickupLat, lng: order.pickupLng },
-        destination: { lat: order.dropLat,   lng: order.dropLng   },
-        travelMode:  window.google.maps.TravelMode.DRIVING,
-      }, (result, status) => {
-        if (status === 'OK') directionsRenderer.setDirections(result);
-      });
+      directionsService.route(
+        {
+          origin: { lat: order.pickupLat, lng: order.pickupLng },
+          destination: { lat: order.dropLat, lng: order.dropLng },
+          travelMode: window.google.maps.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status === "OK") directionsRenderer.setDirections(result);
+        },
+      );
 
       setMapReady(true);
     };
@@ -643,7 +664,7 @@ export default function DriverOrderDetailPage() {
     if (window.google?.maps) {
       initMap();
     } else if (process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY) {
-      const script = document.createElement('script');
+      const script = document.createElement("script");
       script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}&libraries=places`;
       script.async = true;
       script.onload = initMap;
@@ -658,16 +679,17 @@ export default function DriverOrderDetailPage() {
     driverMarkerRef.current = new window.google.maps.Marker({
       position: { lat: location.lat, lng: location.lng },
       map: mapInstanceRef.current,
-      title: 'You',
-      icon: { url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' },
+      title: "You",
+      icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" },
     });
   }, [location]);
 
   // ── Chat history ───────────────────────────────────────
   useEffect(() => {
     if (!id) return;
-    chatService.getMessages(id)
-      .then(res => {
+    chatService
+      .getMessages(id)
+      .then((res) => {
         setMessages(res.data.data.messages);
         chatService.markRead(id).catch(() => {});
       })
@@ -678,11 +700,14 @@ export default function DriverOrderDetailPage() {
   useEffect(() => {
     const unsub = onChatMessage((msg) => {
       if (String(msg.orderId) !== String(id)) return;
-      setMessages(prev => {
-        const exists = prev.some(m =>
-          m.id === msg.id ||
-          (m.message === msg.message && m.senderId === msg.senderId &&
-           new Date(m.createdAt).getTime() === new Date(msg.createdAt).getTime())
+      setMessages((prev) => {
+        const exists = prev.some(
+          (m) =>
+            m.id === msg.id ||
+            (m.message === msg.message &&
+              m.senderId === msg.senderId &&
+              new Date(m.createdAt).getTime() ===
+                new Date(msg.createdAt).getTime()),
         );
         return exists ? prev : [...prev, msg];
       });
@@ -693,13 +718,13 @@ export default function DriverOrderDetailPage() {
 
   // ── Auto-scroll chat ───────────────────────────────────
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMsg = () => {
     if (!chatInput.trim()) return;
-    sendChatMessage(id, chatInput, 'driver');
-    setChatInput('');
+    sendChatMessage(id, chatInput, "driver");
+    setChatInput("");
   };
 
   // ── Accept order ───────────────────────────────────────
@@ -707,10 +732,10 @@ export default function DriverOrderDetailPage() {
     try {
       setStatusLoading(true);
       await orderService.acceptOrder(id);
-      toast.success('Order accepted!');
+      toast.success("Order accepted!");
       dispatch(fetchOrderById(id));
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to accept');
+      toast.error(e.response?.data?.message || "Failed to accept");
     } finally {
       setStatusLoading(false);
     }
@@ -721,10 +746,10 @@ export default function DriverOrderDetailPage() {
     try {
       setStatusLoading(true);
       await orderService.updateStatus(id, status);
-      toast.success(`Marked as ${status.replace(/_/g, ' ')}`);
+      toast.success(`Marked as ${status.replace(/_/g, " ")}`);
       dispatch(fetchOrderById(id));
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed');
+      toast.error(e.response?.data?.message || "Failed");
     } finally {
       setStatusLoading(false);
     }
@@ -736,9 +761,9 @@ export default function DriverOrderDetailPage() {
       setOtpLoading(true);
       await orderService.generatePickupOtp(id);
       setOtpSent(true);
-      toast.success('OTP sent to customer');
+      toast.success("OTP sent to customer");
     } catch (e) {
-      toast.error('Failed to send OTP');
+      toast.error("Failed to send OTP");
     } finally {
       setOtpLoading(false);
     }
@@ -747,18 +772,53 @@ export default function DriverOrderDetailPage() {
   // ── Verify pickup OTP ──────────────────────────────────
   const handleVerifyOtp = async () => {
     if (otpInput.length !== 6) {
-      toast.error('Enter 6-digit OTP');
+      toast.error("Enter 6-digit OTP");
       return;
     }
     try {
       setOtpLoading(true);
       await orderService.verifyPickupOtp(id, otpInput);
-      toast.success('Pickup verified!');
+      toast.success("Pickup verified!");
       setShowOtpModal(false);
-      setOtpInput('');
+      setOtpInput("");
       dispatch(fetchOrderById(id));
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Invalid OTP');
+      toast.error(e.response?.data?.message || "Invalid OTP");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleGenerateDeliveryOtp = async () => {
+    try {
+      setOtpLoading(true);
+
+      await orderService.generateDeliveryOtp(order.id);
+
+      toast.success("Receiver OTP sent successfully");
+      setDeliveryOtpSent(true);
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyDeliveryOtp = async () => {
+    try {
+      setOtpLoading(true);
+
+      await orderService.verifyDeliveryOtp(order.id, otp);
+
+      toast.success("Receiver verified successfully");
+
+      setShowDelOtpModal(false);
+      setOtp("");
+      setDeliveryOtpSent(false);
+
+      dispatch(fetchOrderById(order.id));
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Invalid OTP");
     } finally {
       setOtpLoading(false);
     }
@@ -774,19 +834,19 @@ export default function DriverOrderDetailPage() {
 
   const handleProofSubmit = async () => {
     if (!proofFile) {
-      toast.error('Please select a photo');
+      toast.error("Please select a photo");
       return;
     }
     try {
       setProofLoading(true);
       const formData = new FormData();
-      formData.append('photo', proofFile);
+      formData.append("photo", proofFile);
       await orderService.uploadDeliveryProof(id, formData);
-      toast.success('Delivery confirmed!');
+      toast.success("Delivery confirmed!");
       setShowProofModal(false);
       dispatch(fetchOrderById(id));
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to upload proof');
+      toast.error(e.response?.data?.message || "Failed to upload proof");
     } finally {
       setProofLoading(false);
     }
@@ -797,10 +857,10 @@ export default function DriverOrderDetailPage() {
     try {
       setCashLoading(true);
       await orderService.markCashCollected(id);
-      toast.success('Cash collection confirmed!');
+      toast.success("Cash collection confirmed!");
       dispatch(fetchOrderById(id));
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed');
+      toast.error(e.response?.data?.message || "Failed");
     } finally {
       setCashLoading(false);
     }
@@ -814,18 +874,16 @@ export default function DriverOrderDetailPage() {
     );
   }
 
-  const isCash       = order.paymentMethod === 'cash';
-  const cashDone     = order.cashCollected;
-  const otpVerified  = order.pickupOtpVerified;
-  const activeStatuses = ['accepted', 'picked_up', 'in_transit'];
+  const isCash = order.paymentMethod === "cash";
+  const cashDone = order.cashCollected;
+  const otpVerified = order.pickupOtpVerified;
+  const activeStatuses = ["accepted", "picked_up", "in_transit"];
 
   return (
     <DashboardLayout role="driver" title={`Order #${order.orderNumber}`}>
       <div className="grid lg:grid-cols-5 gap-5">
-
         {/* ── Left column ─────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-4">
-
           {/* Status + Addresses */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
@@ -842,7 +900,13 @@ export default function DriverOrderDetailPage() {
                 </div>
                 {/* Navigate to pickup */}
                 <button
-                  onClick={() => openGoogleMapsNavigation(order.pickupLat, order.pickupLng, 'Pickup')}
+                  onClick={() =>
+                    openGoogleMapsNavigation(
+                      order.pickupLat,
+                      order.pickupLng,
+                      "Pickup",
+                    )
+                  }
                   className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"
                   title="Navigate to pickup"
                 >
@@ -857,7 +921,13 @@ export default function DriverOrderDetailPage() {
                 </div>
                 {/* Navigate to drop */}
                 <button
-                  onClick={() => openGoogleMapsNavigation(order.dropLat, order.dropLng, 'Drop')}
+                  onClick={() =>
+                    openGoogleMapsNavigation(
+                      order.dropLat,
+                      order.dropLng,
+                      "Drop",
+                    )
+                  }
                   className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0"
                   title="Navigate to drop"
                 >
@@ -869,11 +939,15 @@ export default function DriverOrderDetailPage() {
             <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100 text-center text-xs">
               <div>
                 <p className="text-gray-400">Distance</p>
-                <p className="font-semibold text-sm">{order.distance?.toFixed(1)} km</p>
+                <p className="font-semibold text-sm">
+                  {order.distance?.toFixed(1)} km
+                </p>
               </div>
               <div>
                 <p className="text-gray-400">ETA</p>
-                <p className="font-semibold text-sm">{order.estimatedTime} min</p>
+                <p className="font-semibold text-sm">
+                  {order.estimatedTime} min
+                </p>
               </div>
               <div>
                 <p className="text-gray-400">Earning</p>
@@ -892,24 +966,41 @@ export default function DriverOrderDetailPage() {
                 {order.customer?.name?.[0]}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{order.customer?.name}</p>
-                <a href={`tel:${order.customer?.phone}`} className="text-xs text-primary-600 hover:underline">
+                <p className="text-sm font-medium text-gray-900">
+                  {order.customer?.name}
+                </p>
+                <a
+                  href={`tel:${order.customer?.phone}`}
+                  className="text-xs text-primary-600 hover:underline"
+                >
                   {order.customer?.phone}
                 </a>
               </div>
-              <a href={`tel:${order.customer?.phone}`} className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center">
+              <a
+                href={`tel:${order.customer?.phone}`}
+                className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center"
+              >
                 <Phone className="h-4 w-4 text-green-600" />
               </a>
             </div>
 
             {/* Payment method badge */}
-            <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
-              isCash ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
-            }`}>
-              {isCash
-                ? <><Banknote className="h-3.5 w-3.5" /> Cash on Delivery</>
-                : <><IndianRupee className="h-3.5 w-3.5" /> Online Payment</>
-              }
+            <div
+              className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
+                isCash
+                  ? "bg-orange-50 text-orange-700"
+                  : "bg-blue-50 text-blue-700"
+              }`}
+            >
+              {isCash ? (
+                <>
+                  <Banknote className="h-3.5 w-3.5" /> Cash on Delivery
+                </>
+              ) : (
+                <>
+                  <IndianRupee className="h-3.5 w-3.5" /> Online Payment
+                </>
+              )}
               {isCash && cashDone && (
                 <span className="ml-auto flex items-center gap-1 text-green-600">
                   <CheckCircle className="h-3.5 w-3.5" /> Collected
@@ -920,23 +1011,26 @@ export default function DriverOrderDetailPage() {
 
           {/* ── Action Buttons ─────────────────────────── */}
           <div className="space-y-3">
-
             {/* Accept */}
-            {order.status === 'pending' && (
+            {order.status === "pending" && (
               <button
                 onClick={handleAccept}
                 disabled={statusLoading}
                 className="btn-primary w-full py-3 text-base flex items-center justify-center gap-2"
               >
-                {statusLoading
-                  ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Accepting...</>
-                  : '✅ Accept Order'
-                }
+                {statusLoading ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{" "}
+                    Accepting...
+                  </>
+                ) : (
+                  "✅ Accept Order"
+                )}
               </button>
             )}
 
             {/* Pickup OTP verification */}
-            {order.status === 'accepted' && !otpVerified && (
+            {order.status === "accepted" && !otpVerified && (
               <div className="card p-4 border-l-4 border-l-yellow-400">
                 <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-yellow-500" />
@@ -955,54 +1049,69 @@ export default function DriverOrderDetailPage() {
             )}
 
             {/* Mark picked up — only after OTP verified */}
-            {order.status === 'accepted' && otpVerified && (
+            {order.status === "accepted" && otpVerified && (
               <button
-                onClick={() => handleStatus('picked_up')}
+                onClick={() => handleStatus("picked_up")}
                 disabled={statusLoading}
                 className="btn-primary w-full py-3 text-base"
               >
-                {statusLoading ? 'Updating...' : '📦 Mark as Picked Up'}
+                {statusLoading ? "Updating..." : "📦 Mark as Picked Up"}
               </button>
             )}
 
             {/* In transit */}
-            {order.status === 'picked_up' && (
+            {order.status === "picked_up" && (
               <button
-                onClick={() => handleStatus('in_transit')}
+                onClick={() => handleStatus("in_transit")}
                 disabled={statusLoading}
                 className="btn-primary w-full py-3 text-base"
               >
-                {statusLoading ? 'Updating...' : '🚗 Mark In Transit'}
+                {statusLoading ? "Updating..." : "🚗 Mark In Transit"}
               </button>
             )}
 
             {/* Delivered — requires proof photo */}
-            {order.status === 'in_transit' && (
-              <button
-                onClick={() => setShowProofModal(true)}
-                className="w-full py-3 text-base bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
-              >
-                <Camera className="h-4 w-4" />
-                Upload Proof & Mark Delivered
-              </button>
+
+            {order.status === "in_transit" && (
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowDelOtpModal(true)}
+                  className="btn-primary w-full"
+                >
+                  Send Receiver OTP
+                </button>
+
+                <button
+                  onClick={() => setShowProofModal(true)}
+                  className="w-full py-3 text-base bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Camera className="h-4 w-4" />
+                  Upload Proof & Mark Delivered
+                </button>
+              </div>
             )}
 
             {/* Cash collection button */}
-            {isCash && !cashDone && ['in_transit', 'delivered'].includes(order.status) && (
-              <button
-                onClick={handleCashCollected}
-                disabled={cashLoading}
-                className="w-full py-3 text-base bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
-              >
-                {cashLoading
-                  ? 'Confirming...'
-                  : <><Banknote className="h-4 w-4" /> Confirm Cash Collected</>
-                }
-              </button>
-            )}
+            {isCash &&
+              !cashDone &&
+              ["in_transit", "delivered"].includes(order.status) && (
+                <button
+                  onClick={handleCashCollected}
+                  disabled={cashLoading}
+                  className="w-full py-3 text-base bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  {cashLoading ? (
+                    "Confirming..."
+                  ) : (
+                    <>
+                      <Banknote className="h-4 w-4" /> Confirm Cash Collected
+                    </>
+                  )}
+                </button>
+              )}
 
             {/* Delivered success */}
-            {order.status === 'delivered' && (
+            {order.status === "delivered" && (
               <div className="flex items-center justify-center gap-2 p-4 bg-green-50 rounded-xl border border-green-200">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-green-600 font-medium text-sm">
@@ -1010,7 +1119,6 @@ export default function DriverOrderDetailPage() {
                 </span>
               </div>
             )}
-
           </div>
 
           {/* Chat */}
@@ -1022,33 +1130,58 @@ export default function DriverOrderDetailPage() {
               </h3>
               <div className="h-48 overflow-y-auto mb-3 space-y-2 pr-1">
                 {messages.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center pt-6">No messages yet</p>
-                ) : messages.map((m, i) => {
-                  const isMe = m.senderId === user?.id;
-                  return (
-                    <div key={m.id || i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
-                        isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-                      }`}>
-                        {m.message}
-                        <p className={`text-[10px] mt-1 ${isMe ? 'text-primary-200' : 'text-gray-400'}`}>
-                          {new Date(m.createdAt).toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' })}
-                        </p>
+                  <p className="text-xs text-gray-400 text-center pt-6">
+                    No messages yet
+                  </p>
+                ) : (
+                  messages.map((m, i) => {
+                    const isMe = m.senderId === user?.id;
+                    return (
+                      <div
+                        key={m.id || i}
+                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
+                            isMe
+                              ? "bg-primary-600 text-white rounded-br-sm"
+                              : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                          }`}
+                        >
+                          {m.message}
+                          <p
+                            className={`text-[10px] mt-1 ${isMe ? "text-primary-200" : "text-gray-400"}`}
+                          >
+                            {new Date(m.createdAt).toLocaleTimeString("en-IN", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
                 <div ref={messagesEndRef} />
               </div>
               <div className="flex gap-2">
                 <input
                   value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMsg();
+                    }
+                  }}
                   placeholder="Type a message..."
                   className="input-field flex-1"
                 />
-                <button onClick={sendMsg} disabled={!chatInput.trim()} className="btn-primary px-3 disabled:opacity-50">
+                <button
+                  onClick={sendMsg}
+                  disabled={!chatInput.trim()}
+                  className="btn-primary px-3 disabled:opacity-50"
+                >
                   <Send className="h-4 w-4" />
                 </button>
               </div>
@@ -1058,36 +1191,54 @@ export default function DriverOrderDetailPage() {
 
         {/* ── Right column — Map ───────────────────────────── */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="card overflow-hidden" style={{ height: '480px' }}>
+          <div className="card overflow-hidden" style={{ height: "480px" }}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <h3 className="text-sm font-semibold text-gray-800">Route Map</h3>
               <div className="flex gap-3 text-xs">
                 <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Pickup
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />{" "}
+                  Pickup
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> Drop
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />{" "}
+                  Drop
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> You
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />{" "}
+                  You
                 </span>
               </div>
             </div>
-            <div ref={mapRef} style={{ height: 'calc(100% - 45px)' }} className="w-full">
+            <div
+              ref={mapRef}
+              style={{ height: "calc(100% - 45px)" }}
+              className="w-full"
+            >
               {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY && (
                 <div className="h-full flex flex-col items-center justify-center bg-gray-50 gap-3">
                   <MapPin className="h-10 w-10 text-gray-300" />
-                  <p className="text-sm text-gray-400">Google Maps not configured</p>
+                  <p className="text-sm text-gray-400">
+                    Google Maps not configured
+                  </p>
                   <div className="text-center">
-                    <p className="text-xs text-gray-400 mb-2">Navigate manually:</p>
+                    <p className="text-xs text-gray-400 mb-2">
+                      Navigate manually:
+                    </p>
                     <button
-                      onClick={() => openGoogleMapsNavigation(order.pickupLat, order.pickupLng)}
+                      onClick={() =>
+                        openGoogleMapsNavigation(
+                          order.pickupLat,
+                          order.pickupLng,
+                        )
+                      }
                       className="btn-secondary text-xs py-1.5 px-3 mb-2 block mx-auto"
                     >
                       Open Pickup in Maps
                     </button>
                     <button
-                      onClick={() => openGoogleMapsNavigation(order.dropLat, order.dropLng)}
+                      onClick={() =>
+                        openGoogleMapsNavigation(order.dropLat, order.dropLng)
+                      }
                       className="btn-primary text-xs py-1.5 px-3 block mx-auto"
                     >
                       Open Drop in Maps
@@ -1096,6 +1247,26 @@ export default function DriverOrderDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="flex gap-2 p-3 border-t">
+            <button
+              onClick={() =>
+                openGoogleMapsNavigation(order.pickupLat, order.pickupLng)
+              }
+              className="btn-secondary flex-1"
+            >
+              Pickup Navigation
+            </button>
+
+            <button
+              onClick={() =>
+                openGoogleMapsNavigation(order.dropLat, order.dropLng)
+              }
+              className="btn-primary flex-1"
+            >
+              Drop Navigation
+            </button>
           </div>
 
           {/* GPS status */}
@@ -1116,11 +1287,15 @@ export default function DriverOrderDetailPage() {
       {/* ── OTP Modal ──────────────────────────────────────── */}
       {showOtpModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowOtpModal(false)} />
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setShowOtpModal(false)}
+          />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-5 border-b">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-yellow-500" /> Pickup OTP Verification
+                <KeyRound className="h-4 w-4 text-yellow-500" /> Pickup OTP
+                Verification
               </h3>
               <p className="text-xs text-gray-500 mt-1">
                 Ask the customer for the OTP sent to their email/phone
@@ -1133,7 +1308,7 @@ export default function DriverOrderDetailPage() {
                   disabled={otpLoading}
                   className="btn-primary w-full"
                 >
-                  {otpLoading ? 'Sending...' : 'Send OTP to Customer'}
+                  {otpLoading ? "Sending..." : "Send OTP to Customer"}
                 </button>
               ) : (
                 <>
@@ -1148,7 +1323,9 @@ export default function DriverOrderDetailPage() {
                       type="text"
                       maxLength={6}
                       value={otpInput}
-                      onChange={e => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) =>
+                        setOtpInput(e.target.value.replace(/\D/g, ""))
+                      }
                       placeholder="6-digit OTP"
                       className="input-field text-center text-lg tracking-widest font-mono"
                     />
@@ -1158,7 +1335,77 @@ export default function DriverOrderDetailPage() {
                     disabled={otpLoading || otpInput.length !== 6}
                     className="btn-primary w-full disabled:opacity-50"
                   >
-                    {otpLoading ? 'Verifying...' : 'Verify & Confirm Pickup'}
+                    {otpLoading ? "Verifying..." : "Verify & Confirm Pickup"}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {showDelOtpModal && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setShowDelOtpModal(false)}
+          />
+
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="p-5 border-b">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-green-500" />
+                Delivery OTP Verification
+              </h3>
+
+              <p className="text-xs text-gray-500 mt-1">
+                Ask the package receiver for the OTP sent to their phone/email
+              </p>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+              {!deliveryOtpSent ? (
+                <button
+                  onClick={handleGenerateDeliveryOtp}
+                  disabled={otpLoading}
+                  className="btn-primary w-full"
+                >
+                  {otpLoading ? "Sending..." : "Send Receiver OTP"}
+                </button>
+              ) : (
+                <>
+                  <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    OTP sent to receiver successfully
+                  </p>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Enter Receiver OTP
+                    </label>
+
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) =>
+                        setOtp(e.target.value.replace(/\D/g, ""))
+                      }
+                      placeholder="6-digit OTP"
+                      className="input-field text-center text-lg tracking-widest font-mono"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleVerifyDeliveryOtp}
+                    disabled={otpLoading || otp.length !== 6}
+                    className="btn-primary w-full disabled:opacity-50"
+                  >
+                    {otpLoading
+                      ? "Verifying..."
+                      : "Verify OTP & Complete Delivery"}
                   </button>
                 </>
               )}
@@ -1170,33 +1417,61 @@ export default function DriverOrderDetailPage() {
       {/* ── Delivery Proof Modal ───────────────────────────── */}
       {showProofModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => { setShowProofModal(false); setProofFile(null); setProofPreview(null); }} />
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => {
+              setShowProofModal(false);
+              setProofFile(null);
+              setProofPreview(null);
+            }}
+          />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-5 border-b">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Camera className="h-4 w-4 text-primary-600" /> Upload Delivery Proof
+                <Camera className="h-4 w-4 text-primary-600" /> Upload Delivery
+                Proof
               </h3>
-              <p className="text-xs text-gray-500 mt-1">Take a photo of the delivered package</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Take a photo of the delivered package
+              </p>
             </div>
             <div className="p-5 space-y-4">
               <label className="block cursor-pointer">
-                <input type="file" accept="image/*" capture="environment" onChange={handleProofSelect} className="sr-only" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleProofSelect}
+                  className="sr-only"
+                />
                 {proofPreview ? (
                   <div className="relative">
-                    <img src={proofPreview} alt="Proof" className="w-full h-48 object-cover rounded-xl" />
-                    <p className="text-xs text-center text-primary-600 mt-2">Tap to change photo</p>
+                    <img
+                      src={proofPreview}
+                      alt="Proof"
+                      className="w-full h-48 object-cover rounded-xl"
+                    />
+                    <p className="text-xs text-center text-primary-600 mt-2">
+                      Tap to change photo
+                    </p>
                   </div>
                 ) : (
                   <div className="h-40 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary-400 transition-colors">
                     <Camera className="h-8 w-8 text-gray-300" />
-                    <p className="text-sm text-gray-500">Tap to take/select photo</p>
+                    <p className="text-sm text-gray-500">
+                      Tap to take/select photo
+                    </p>
                   </div>
                 )}
               </label>
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => { setShowProofModal(false); setProofFile(null); setProofPreview(null); }}
+                  onClick={() => {
+                    setShowProofModal(false);
+                    setProofFile(null);
+                    setProofPreview(null);
+                  }}
                   className="flex-1 btn-secondary"
                 >
                   Cancel
@@ -1206,17 +1481,22 @@ export default function DriverOrderDetailPage() {
                   disabled={!proofFile || proofLoading}
                   className="flex-1 btn-primary disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {proofLoading
-                    ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Uploading...</>
-                    : <><Upload className="h-4 w-4" /> Confirm Delivery</>
-                  }
+                  {proofLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{" "}
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" /> Confirm Delivery
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           </div>
         </>
       )}
-
     </DashboardLayout>
   );
 }

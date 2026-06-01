@@ -31,6 +31,8 @@ export const orderService = {
   markCashCollected:  (id)            => api.patch(`/orders/${id}/cash-collected`),
   generatePickupOtp:  (id)            => api.post(`/orders/${id}/pickup-otp`),
   verifyPickupOtp:    (id, otp)       => api.post(`/orders/${id}/verify-pickup-otp`, { otp }),
+  generateDeliveryOtp:  (id)            => api.post(`/orders/${id}/delivery-otp`),
+  verifyDeliveryOtp:    (id, otp)       => api.post(`/orders/${id}/verify-delivery-otp`, { otp }),
 };
 
 // ── Payments ──────────────────────────────────────────────

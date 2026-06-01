@@ -275,13 +275,41 @@ const generatePickupOtp = async (req, res) => {
 const verifyPickupOtp = async (req, res) => {
   await orderService.verifyPickupOtp(
     req.params.id,
-    // req.user.id,
+    req.user.id,
     req.body.otp
   );
 
   res.json({
     success: true,
     message: "Pickup verified",
+  });
+};
+
+
+const generateDeliveryOtp = async (req, res) => {
+  await orderService.generateDeliveryOtp(
+    req.params.id,
+    req.user.id,
+  );
+
+  res.json({
+    success: true,
+    message: "OTP sent to order revicer",
+  });
+};
+
+
+
+const verifyDeliveryOtp = async (req, res) => {
+  await orderService.verifyDeliveryOtp(
+    req.params.id,
+    req.user.id,
+    req.body.otp
+  );
+
+  res.json({
+    success: true,
+    message: "order reciver verified ",
   });
 };
 
@@ -299,4 +327,7 @@ module.exports = {
   markCashCollected,
   generatePickupOtp,
   verifyPickupOtp,
+
+  generateDeliveryOtp,
+  verifyDeliveryOtp
 };

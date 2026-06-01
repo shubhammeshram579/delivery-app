@@ -43,4 +43,15 @@ router.post('/:id/verify-pickup-otp',
   ctrl.verifyPickupOtp
 );
 
+router.post('/:id/delivery-otp',
+  restrictTo('driver'),
+  ctrl.generateDeliveryOtp
+);
+
+// Customer verifies pickup OTP
+router.post('/:id/verify-delivery-otp',
+  restrictTo('driver'),
+  ctrl.verifyDeliveryOtp
+);
+
 module.exports = router;

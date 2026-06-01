@@ -106,6 +106,11 @@ receiverAlternatePhone: {
   defaultValue: null,
 },
 
+deliveryOtpVerified: {
+  type: DataTypes.BOOLEAN,
+  defaultValue: false,
+},
+
 // Package Details
 packageCategory: {
   type: DataTypes.ENUM(
