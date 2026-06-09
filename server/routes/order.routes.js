@@ -54,4 +54,8 @@ router.post('/:id/verify-delivery-otp',
   ctrl.verifyDeliveryOtp
 );
 
+router.get(
+  '/:id/live-location',
+  ctrl.getOrderLiveLocation
+);
 module.exports = router;

@@ -3,22 +3,49 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 
 // ── useGeolocation ────────────────────────────────────────
+// export const useGeolocation = (watchMode = false) => {
+//   const [location, setLocation] = useState(null);
+//   const [error, setError] = useState(null);
+//   const watchId = useRef(null);
+
+//   const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+
+//   const onSuccess = useCallback((pos) => {
+//     setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
+//     setError(null);
+//   }, []);
+
+//   const onError = useCallback((err) => {
+//     setError(err.message);
+//     toast.error('Location access denied. Please enable GPS.');
+//   }, []);
+
+//   useEffect(() => {
+//     if (!navigator.geolocation) {
+//       setError('Geolocation not supported');
+//       return;
+//     }
+
+//     if (watchMode) {
+//       watchId.current = navigator.geolocation.watchPosition(onSuccess, onError, options);
+//     } else {
+//       navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
+//     }
+
+//     return () => {
+//       if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+//     };
+//   }, [watchMode]);
+
+//   return { location, error };
+// };
+
+
+// client/hooks/index.js — ensure this exists
 export const useGeolocation = (watchMode = false) => {
   const [location, setLocation] = useState(null);
-  const [error, setError] = useState(null);
-  const watchId = useRef(null);
-
-  const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
-
-  const onSuccess = useCallback((pos) => {
-    setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
-    setError(null);
-  }, []);
-
-  const onError = useCallback((err) => {
-    setError(err.message);
-    toast.error('Location access denied. Please enable GPS.');
-  }, []);
+  const [error,    setError]    = useState(null);
+  const watchIdRef = useRef(null);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -26,14 +53,23 @@ export const useGeolocation = (watchMode = false) => {
       return;
     }
 
+    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 };
+    const onSuccess = (pos) => {
+      setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    };
+    const onError = (err) => {
+      setError(err.message);
+      console.warn('[GPS]', err.message);
+    };
+
     if (watchMode) {
-      watchId.current = navigator.geolocation.watchPosition(onSuccess, onError, options);
+      watchIdRef.current = navigator.geolocation.watchPosition(onSuccess, onError, options);
     } else {
       navigator.geolocation.getCurrentPosition(onSuccess, onError, options);
     }
 
     return () => {
-      if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+      if (watchIdRef.current) navigator.geolocation.clearWatch(watchIdRef.current);
     };
   }, [watchMode]);
 

@@ -451,6 +451,7 @@ const acceptOrder = async (orderId, driverUserId) => {
         driverId: driver.id,
 
         status: "accepted",
+        driverStatus: 'going_to_pickup',
 
         acceptedAt: new Date(),
       },
@@ -494,6 +495,199 @@ const acceptOrder = async (orderId, driverUserId) => {
   }
 };
 
+// const updateOrderStatus = async (
+//   orderId,
+//   driverUserId,
+//   status,
+//   extras = {},
+// ) => {
+//   const transaction = await sequelize.transaction();
+
+//   try {
+//     // Find Driver
+//     const driver = await Driver.findOne({
+//       where: {
+//         userId: driverUserId,
+//       },
+
+//       transaction,
+//     });
+
+//     if (!driver) {
+//       throw new NotFoundError("Driver profile");
+//     }
+
+//     // Find Order
+//     const order = await Order.findByPk(orderId, {
+//       transaction,
+
+//       // lock: true,
+//       lock: transaction.LOCK.UPDATE,
+//     });
+
+//     if (!order) {
+//       throw new NotFoundError("Order");
+//     }
+
+//     // Ownership Check
+//     if (String(order.driverId) !== String(driver.id)) {
+//       throw new AuthorizationError("Not your order");
+//     }
+
+//     // Status Transition Rules
+//     const VALID_TRANSITIONS = {
+//       accepted: ["picked_up", "cancelled"],
+
+//       picked_up: ["in_transit"],
+
+//       in_transit: ["delivered"],
+//     };
+
+//     // Invalid Transition
+//     if (!VALID_TRANSITIONS[order.status]?.includes(status)) {
+//       throw new ValidationError(
+//         `Cannot transition from ${order.status} to ${status}`,
+//       );
+//     }
+
+//     const updateData = {
+//       status,
+//     };
+
+//     // Picked Up
+//     if (status === "picked_up") {
+//       updateData.pickedUpAt = new Date();
+//     }
+
+//     // In Transit
+//     if (status === "in_transit") {
+//       updateData.inTransitAt = new Date();
+//     }
+
+//     // Delivered
+//     if (status === "delivered") {
+//       // Prevent Duplicate Earnings
+//       const existingEarning = await Earnings.findOne({
+//         where: {
+//           orderId: order.id,
+//         },
+
+//         transaction,
+//       });
+
+//       if (existingEarning) {
+//         throw new ValidationError("Earnings already processed");
+//       }
+
+//       updateData.deliveredAt = new Date();
+
+//       // Fee Calculation
+//       const platformFee = parseFloat(
+//         (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2),
+//       );
+
+//       const netEarning = parseFloat(
+//         (order.deliveryFee - platformFee).toFixed(2),
+//       );
+
+//       // Create Earnings
+//       await Earnings.create(
+//         {
+//           driverId: driver.id,
+
+//           orderId: order.id,
+
+//           amount: order.deliveryFee,
+
+//           platformFee,
+
+//           netEarning,
+//         },
+
+//         {
+//           transaction,
+//         },
+//       );
+
+//       // Update Driver Stats
+//       await driver.increment(
+//         {
+//           totalDeliveries: 1,
+
+//           totalEarnings: netEarning,
+//         },
+
+//         {
+//           transaction,
+//         },
+//       );
+
+//       // Check Active Orders
+//       const activeOrders = await Order.count({
+//         where: {
+//           driverId: driver.id,
+
+//           status: {
+//             [Op.in]: ["accepted", "picked_up", "in_transit"],
+//           },
+//         },
+
+//         transaction,
+//       });
+
+//       // Driver Available
+//       if (activeOrders <= 1) {
+//         await driver.update(
+//           {
+//             isAvailable: true,
+//           },
+
+//           {
+//             transaction,
+//           },
+//         );
+//       }
+//     }
+
+//     // Delivery Proof
+//     if (extras.deliveryProofImage) {
+//       updateData.deliveryProofImage = extras.deliveryProofImage;
+//     }
+
+//     // Update Order
+//     await order.update(updateData, {
+//       transaction,
+//     });
+
+//     // Commit
+//     await transaction.commit();
+
+//     // Clear Cache
+//     await cacheDelByPattern(`orders:customer:${order.customerId}*`);
+
+//     await cacheDelByPattern(`orders:driver:*`);
+
+//     // Notification
+//     await sendNotification(order.customerId, {
+//       title: `Order ${status.replace(/_/g, " ")}`,
+
+//       body: `Your order #${order.orderNumber} is now ${status.replace(/_/g, " ")}.`,
+
+//       type: "order",
+
+//       data: {
+//         orderId,
+//       },
+//     });
+
+//     return order;
+//   } catch (error) {
+//     await transaction.rollback();
+
+//     throw error;
+//   }
+// };
+
 const updateOrderStatus = async (
   orderId,
   driverUserId,
@@ -508,7 +702,6 @@ const updateOrderStatus = async (
       where: {
         userId: driverUserId,
       },
-
       transaction,
     });
 
@@ -519,8 +712,6 @@ const updateOrderStatus = async (
     // Find Order
     const order = await Order.findByPk(orderId, {
       transaction,
-
-      // lock: true,
       lock: transaction.LOCK.UPDATE,
     });
 
@@ -536,9 +727,7 @@ const updateOrderStatus = async (
     // Status Transition Rules
     const VALID_TRANSITIONS = {
       accepted: ["picked_up", "cancelled"],
-
       picked_up: ["in_transit"],
-
       in_transit: ["delivered"],
     };
 
@@ -549,9 +738,23 @@ const updateOrderStatus = async (
       );
     }
 
+    // Base data update dictionary
     const updateData = {
       status,
     };
+
+    // ── 👇 NEW: AUTO-MAP HIGH LEVEL STATUS TO DRIVER STATUS ──
+    const STATUS_TO_DRIVER_STATUS = {
+      accepted: "going_to_pickup",
+      picked_up: "picked_up",
+      in_transit: "in_transit",
+      delivered: "delivered",
+    };
+
+    if (STATUS_TO_DRIVER_STATUS[status]) {
+      updateData.driverStatus = STATUS_TO_DRIVER_STATUS[status];
+    }
+    // ─────────────────────────────────────────────────────────
 
     // Picked Up
     if (status === "picked_up") {
@@ -560,7 +763,8 @@ const updateOrderStatus = async (
 
     // In Transit
     if (status === "in_transit") {
-      updateData.inTransitAt = new Date();
+      updateData.inTransitAt = new Date(); 
+      // Note: Make sure 'inTransitAt' exists in your actual db migration tracking timestamps!
     }
 
     // Delivered
@@ -570,7 +774,6 @@ const updateOrderStatus = async (
         where: {
           orderId: order.id,
         },
-
         transaction,
       });
 
@@ -593,16 +796,11 @@ const updateOrderStatus = async (
       await Earnings.create(
         {
           driverId: driver.id,
-
           orderId: order.id,
-
           amount: order.deliveryFee,
-
           platformFee,
-
           netEarning,
         },
-
         {
           transaction,
         },
@@ -612,10 +810,8 @@ const updateOrderStatus = async (
       await driver.increment(
         {
           totalDeliveries: 1,
-
           totalEarnings: netEarning,
         },
-
         {
           transaction,
         },
@@ -625,12 +821,10 @@ const updateOrderStatus = async (
       const activeOrders = await Order.count({
         where: {
           driverId: driver.id,
-
           status: {
             [Op.in]: ["accepted", "picked_up", "in_transit"],
           },
         },
-
         transaction,
       });
 
@@ -640,7 +834,6 @@ const updateOrderStatus = async (
           {
             isAvailable: true,
           },
-
           {
             transaction,
           },
@@ -653,7 +846,7 @@ const updateOrderStatus = async (
       updateData.deliveryProofImage = extras.deliveryProofImage;
     }
 
-    // Update Order
+    // 👇 Update Order (This updates both 'status' and our new 'driverStatus' simultaneously)
     await order.update(updateData, {
       transaction,
     });
@@ -663,17 +856,13 @@ const updateOrderStatus = async (
 
     // Clear Cache
     await cacheDelByPattern(`orders:customer:${order.customerId}*`);
-
     await cacheDelByPattern(`orders:driver:*`);
 
     // Notification
     await sendNotification(order.customerId, {
       title: `Order ${status.replace(/_/g, " ")}`,
-
       body: `Your order #${order.orderNumber} is now ${status.replace(/_/g, " ")}.`,
-
       type: "order",
-
       data: {
         orderId,
       },
@@ -682,7 +871,6 @@ const updateOrderStatus = async (
     return order;
   } catch (error) {
     await transaction.rollback();
-
     throw error;
   }
 };
@@ -875,6 +1063,7 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       {
         deliveryProofImage: proofUrl,
         status: "delivered",
+        driverStatus:"delivered",
         deliveredAt: new Date(),
       },
       { transaction },
@@ -1013,6 +1202,8 @@ const verifyPickupOtp = async (orderId, driverUserId, otp) => {
   await order.update({
     pickupOtpVerified: true,
     status: "picked_up",
+    driverStatus: "picked_up",
+    driverLastLocationAt:new Date(),
     pickedUpAt: new Date(),
   });
 
@@ -1074,6 +1265,82 @@ const verifyDeliveryOtp = async (orderId, driverUserId, otp) => {
   }
 };
 
+
+
+// const getOrderLiveLocationService = async (orderId) => {
+//   const order = await Order.findByPk(orderId);
+
+//   if (!order) {
+//     throw new Error('Order not found');
+//   }
+
+//   if (!order.driverId) {
+//     return null;
+//   }
+
+//   const driver = await Driver.findByPk(order.driverId);
+
+//   if (!driver) {
+//     return null;
+//   }
+
+//   return {
+//     lat: driver.currentLat,
+//     lng: driver.currentLng,
+//     isOnline: driver.isOnline,
+//     updatedAt: driver.lastLocationUpdate,
+//     driverStatus: order.driverStatus,
+//   };
+// };
+
+
+const getOrderLiveLocationService = async (orderId) => {
+  const order = await Order.findByPk(orderId);
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  if (!order.driverId) {
+    return null;
+  }
+
+  // First try Redis
+  const redisLocation = await cacheGet(
+    `driver-location:${order.driverId}`
+  );
+
+  if (redisLocation) {
+    return {
+      lat: Number(redisLocation.lat),
+      lng: Number(redisLocation.lng),
+      isOnline: redisLocation.isOnline,
+      updatedAt: redisLocation.updatedAt,
+      driverStatus: order.driverStatus,
+      source: "redis",
+    };
+  }
+
+  // Fallback DB
+  const driver = await Driver.findByPk(order.driverId);
+
+  if (!driver) {
+    return null;
+  }
+
+  return {
+    lat: Number(driver.currentLat),
+    lng: Number(driver.currentLng),
+    isOnline: driver.isOnline,
+    // updatedAt: driver.lastLocationUpdate,
+    updatedAt: order.driverLastLocationAt,
+    driverStatus: order.driverStatus,
+    source: "database",
+  };
+};
+
+
+
 module.exports = {
   createOrder,
   getOrders,
@@ -1092,4 +1359,6 @@ module.exports = {
 
   generateDeliveryOtp,
   verifyDeliveryOtp,
+
+  getOrderLiveLocationService
 };

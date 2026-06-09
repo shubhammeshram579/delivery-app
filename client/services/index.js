@@ -33,6 +33,7 @@ export const orderService = {
   verifyPickupOtp:    (id, otp)       => api.post(`/orders/${id}/verify-pickup-otp`, { otp }),
   generateDeliveryOtp:  (id)            => api.post(`/orders/${id}/delivery-otp`),
   verifyDeliveryOtp:    (id, otp)       => api.post(`/orders/${id}/verify-delivery-otp`, { otp }),
+  getLiveLocation: (id) => api.get(`/orders/${id}/live-location`)
 };
 
 // ── Payments ──────────────────────────────────────────────

@@ -43,6 +43,7 @@ const orderSlice = createSlice({
   },
   reducers: {
     updateDriverLocation: (state, { payload }) => {
+      console.log("REDUX LOCATION:", payload);
       state.driverLocation = payload;
     },
     setTrackingOrder: (state, { payload }) => {

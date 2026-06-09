@@ -1,21 +1,22 @@
-const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
-const { Op } = require('sequelize');
-const { Driver, ChatMessage,Order, User } = require('../models');
-const { cacheSet } = require('../config/redis');
-const { setIo } = require('../utils/notifications');
-const logger = require('../utils/logger');
+const { Server } = require("socket.io");
+const jwt = require("jsonwebtoken");
+const { Op } = require("sequelize");
+const { Driver, ChatMessage, Order, User } = require("../models");
+const { cacheSet } = require("../config/redis");
+const { setIo } = require("../utils/notifications");
+const logger = require("../utils/logger");
+// const calculateDistance = require("../utils/distance")
 
 let io;
 
 const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:3000',
-      methods: ['GET', 'POST'],
+      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      methods: ["GET", "POST"],
       credentials: true,
     },
-    transports: ['websocket', 'polling'],
+    transports: ["websocket", "polling"],
     pingTimeout: 60000,
     pingInterval: 25000,
   });
@@ -27,9 +28,9 @@ const initSocket = (server) => {
     try {
       const token =
         socket.handshake.auth?.token ||
-        socket.handshake.headers?.authorization?.split(' ')[1];
+        socket.handshake.headers?.authorization?.split(" ")[1];
 
-      if (!token) return next(new Error('No token'));
+      if (!token) return next(new Error("No token"));
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -37,199 +38,264 @@ const initSocket = (server) => {
 
       next();
     } catch (err) {
-      next(new Error('Invalid token'));
+      next(new Error("Invalid token"));
     }
   });
 
   // ===============================
   // CONNECTION
   // ===============================
-  io.on('connection', async (socket) => {
+  io.on("connection", async (socket) => {
     logger.info(`Socket connected: ${socket.id} user:${socket.userId}`);
 
     // Prevent duplicate joins
     socket.join(`user:${socket.userId}`);
-    
 
     // ===============================
     // DRIVER ONLINE
     // ===============================
-    socket.on('driver:online', async () => {
+    socket.on("driver:online", async () => {
       await Driver.update(
         { isOnline: true, isAvailable: true },
-        { where: { userId: socket.userId } }
+        { where: { userId: socket.userId } },
       ).catch(() => {});
     });
 
     // ===============================
     // DRIVER LOCATION
     // ===============================
-    socket.on('driver:location', async ({ lat, lng, orderId }) => {
-      await Driver.update(
-        { currentLat: lat, currentLng: lng },
-        { where: { userId: socket.userId } }
-      ).catch(() => {});
+    // socket.on('driver:location', async ({ lat, lng, orderId }) => {
+    //   await Driver.update(
+    //     { currentLat: lat, currentLng: lng },
+    //     { where: { userId: socket.userId } }
+    //   ).catch(() => {});
 
-      await cacheSet(`dloc:${socket.userId}`, { lat, lng }, 30);
+    //   await cacheSet(`dloc:${socket.userId}`, { lat, lng }, 30);
 
-      if (orderId) {
-        io.to(`order:${orderId}`).emit('order:location', {
-          lat,
-          lng,
-          driverId: socket.userId,
-          orderId,
-        });
-      }
-    });
+    //   if (orderId) {
+    //     io.to(`order:${orderId}`).emit('order:location', {
+    //       lat,
+    //       lng,
+    //       driverId: socket.userId,
+    //       orderId,
+    //     });
+    //   }
+    // });
 
-    // ===============================
-    // ORDER TRACKING ROOM
-    // ===============================
-    socket.on('order:track', ({ orderId }) => {
-      socket.join(`order:${orderId}`);
-      logger.info(`User ${socket.userId} joined order:${orderId}`);
-    });
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371;
 
-    socket.on('order:untrack', ({ orderId }) => {
-      socket.leave(`order:${orderId}`);
-    });
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
 
-    socket.on('chat:send', async (payload, callback) => {
-  try {
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
 
-    const { orderId, message, senderRole } = payload;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    if (!message?.trim() || !orderId) {
-
-      callback?.({
-        success: false,
-        error: 'Invalid data',
-      });
-
-      return;
+      return R * c;
     }
 
-    // Ensure sender joined room
-    socket.join(`order:${orderId}`);
+    socket.on("driver:location", async ({ lat, lng, orderId }) => {
+      try {
+        // Always update cache and DB
+        await cacheSet(`driver-location:${socket.userId}`, { lat, lng, updatedAt: Date.now() }, 60);
 
-    // Get order details
+        await Driver.update(
+          { currentLat: lat, currentLng: lng, driverLastLocationAt: new Date() },
+          { where: { userId: socket.userId } }
+        ).catch(() => {});
 
-    const order = await Order.findByPk(orderId, {
-      include: [
-        {
-          model: User,
-          as: 'customer',
-          attributes: ['id', 'name'],
-        },
-        {
-          model: Driver,
-          as: 'driver',
+        if (!orderId) return;
+
+        const order = await Order.findByPk(orderId, {
+          attributes: ['id', 'pickupLat', 'pickupLng', 'dropLat', 'dropLng', 'driverStatus', 'status', 'customerId'],
+        });
+
+        if (!order) return;
+        if (!['accepted', 'picked_up', 'in_transit'].includes(order.status)) return;
+
+        const distanceToPickup = calculateDistance(lat, lng, order.pickupLat, order.pickupLng);
+        const distanceToDrop   = calculateDistance(lat, lng, order.dropLat,   order.dropLng);
+
+        // ← KEY FIX: Only emit if within 15km of either pickup or drop
+        const MIN_DISTANCE_KM = 15;
+        if (distanceToPickup > MIN_DISTANCE_KM && distanceToDrop > MIN_DISTANCE_KM) {
+          console.log(`[Socket] Driver ${socket.userId} too far (${Math.min(distanceToPickup, distanceToDrop).toFixed(1)}km) — not emitting`);
+          return;
+        }
+
+        // Update driverStatus if arrived at pickup
+        let driverStatus = order.driverStatus;
+        if (distanceToPickup <= 0.2 && order.driverStatus === 'going_to_pickup') {
+          driverStatus = 'arrived_pickup';
+          await Order.update(
+            { driverStatus: 'arrived_pickup', driverLastLocationAt: new Date() },
+            { where: { id: orderId } }
+          );
+        }
+
+        const payload = {
+          lat:             Number(lat),
+          lng:             Number(lng),
+          driverId:        socket.userId,
+          orderId,
+          driverStatus,
+          distanceToPickup: parseFloat(distanceToPickup.toFixed(2)),
+          distanceToDrop:   parseFloat(distanceToDrop.toFixed(2)),
+          updatedAt:        Date.now(),
+        };
+
+        console.log(`[Socket] Emitting location to order:${orderId}`, { lat, lng, distanceToPickup });
+        io.to(`order:${orderId}`).emit('order:location', payload);
+
+      } catch (error) {
+        console.error('[Socket] driver:location error:', error.message);
+      }
+});
+
+    socket.on("order:track", ({ orderId }) => {
+      const roomName = `order:${orderId}`;
+
+      socket.join(roomName);
+
+      console.log(`✅ User ${socket.userId} joined room ${roomName}`);
+
+      console.log("Current rooms:", Array.from(socket.rooms));
+    });
+
+    socket.on("order:untrack", ({ orderId }) => {
+      const roomName = `order:${orderId}`;
+
+      socket.leave(roomName);
+
+      console.log(`❌ User ${socket.userId} left room ${roomName}`);
+    });
+
+    socket.on("chat:send", async (payload, callback) => {
+      try {
+        const { orderId, message, senderRole } = payload;
+
+        if (!message?.trim() || !orderId) {
+          callback?.({
+            success: false,
+            error: "Invalid data",
+          });
+
+          return;
+        }
+
+        // Ensure sender joined room
+        socket.join(`order:${orderId}`);
+
+        // Get order details
+
+        const order = await Order.findByPk(orderId, {
           include: [
             {
               model: User,
-              as: 'user',
-              attributes: ['id', 'name'],
+              as: "customer",
+              attributes: ["id", "name"],
+            },
+            {
+              model: Driver,
+              as: "driver",
+              include: [
+                {
+                  model: User,
+                  as: "user",
+                  attributes: ["id", "name"],
+                },
+              ],
             },
           ],
-        },
-      ],
-    });
+        });
 
-    if (!order) {
+        if (!order) {
+          callback?.({
+            success: false,
+            error: "Order not found",
+          });
 
-      callback?.({
-        success: false,
-        error: 'Order not found',
-      });
+          return;
+        }
 
-      return;
-    }
+        // Save message
+        const msg = await ChatMessage.create({
+          orderId,
+          senderId: socket.userId,
+          senderRole: senderRole || "customer",
+          message: message.trim(),
+        });
 
-    // Save message
-    const msg = await ChatMessage.create({
-      orderId,
-      senderId: socket.userId,
-      senderRole: senderRole || 'customer',
-      message: message.trim(),
-    });
+        const response = {
+          id: msg.id,
+          orderId,
+          senderId: socket.userId,
+          senderRole: msg.senderRole,
+          message: msg.message,
+          createdAt: msg.createdAt,
+        };
 
-    const response = {
-      id: msg.id,
-      orderId,
-      senderId: socket.userId,
-      senderRole: msg.senderRole,
-      message: msg.message,
-      createdAt: msg.createdAt,
-    };
+        // Realtime emit to room
+        io.to(`order:${orderId}`).emit("chat:message", response);
 
-    // Realtime emit to room
-    io.to(`order:${orderId}`).emit('chat:message', response);
-
-    /*
+        /*
       ==========================
       SEND NOTIFICATION
       ==========================
     */
 
-    const { sendNotification } = require('../utils/notifications');
+        const { sendNotification } = require("../utils/notifications");
 
-    // CUSTOMER -> DRIVER
-    if (
-      senderRole === 'customer' &&
-      order.driver?.user?.id
-    ) {
+        // CUSTOMER -> DRIVER
+        if (senderRole === "customer" && order.driver?.user?.id) {
+          await sendNotification(order.driver.user.id, {
+            title: "New Message",
+            body: `${order.customer.name}: ${message}`,
+            type: "chat",
+            data: {
+              orderId,
+              senderId: socket.userId,
+            },
+          });
+        }
 
-      await sendNotification(order.driver.user.id, {
-        title: 'New Message',
-        body: `${order.customer.name}: ${message}`,
-        type: 'chat',
-        data: {
-          orderId,
-          senderId: socket.userId,
-        },
-      });
+        // DRIVER -> CUSTOMER
+        if (senderRole === "driver" && order.customer?.id) {
+          await sendNotification(order.customer.id, {
+            title: "Driver Message",
+            body: `${order.driver?.user?.name || "Driver"}: ${message}`,
+            type: "chat",
+            data: {
+              orderId,
+              senderId: socket.userId,
+            },
+          });
+        }
 
-    }
+        callback?.({
+          success: true,
+          data: response,
+        });
+      } catch (err) {
+        logger.error("Chat send error:", err);
 
-    // DRIVER -> CUSTOMER
-    if (
-      senderRole === 'driver' &&
-      order.customer?.id
-    ) {
-
-      await sendNotification(order.customer.id, {
-        title: 'Driver Message',
-        body: `${order.driver?.user?.name || 'Driver'}: ${message}`,
-        type: 'chat',
-        data: {
-          orderId,
-          senderId: socket.userId,
-        },
-      });
-
-    }
-
-    callback?.({
-      success: true,
-      data: response,
+        callback?.({
+          success: false,
+          error: "Chat failed",
+        });
+      }
     });
-
-  } catch (err) {
-
-    logger.error('Chat send error:', err);
-
-    callback?.({
-      success: false,
-      error: 'Chat failed',
-    });
-
-  }
-});
 
     // ===============================
     // CHAT READ RECEIPT
     // ===============================
-    socket.on('chat:read', async ({ orderId }) => {
+    socket.on("chat:read", async ({ orderId }) => {
       try {
         await ChatMessage.update(
           { isRead: true },
@@ -239,34 +305,33 @@ const initSocket = (server) => {
               senderId: { [Op.ne]: socket.userId },
               isRead: false,
             },
-          }
+          },
         );
 
-        io.to(`order:${orderId}`).emit('chat:read', {
+        io.to(`order:${orderId}`).emit("chat:read", {
           orderId,
           readBy: socket.userId,
         });
-
       } catch (err) {
-        logger.error('Chat read error:', err.message);
+        logger.error("Chat read error:", err.message);
       }
     });
 
     // ===============================
     // DISCONNECT
     // ===============================
-    socket.on('disconnect', async () => {
+    socket.on("disconnect", async () => {
       logger.info(`Socket disconnected: ${socket.id}`);
 
       await Driver.update(
         { isOnline: false },
-        { where: { userId: socket.userId } }
+        { where: { userId: socket.userId } },
       ).catch(() => {});
     });
   });
 
   setIo(io);
-  logger.info('Socket.IO initialized');
+  logger.info("Socket.IO initialized");
   return io;
 };
 

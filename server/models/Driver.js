@@ -227,6 +227,10 @@ const Driver = sequelize.define('Driver', {
     type: DataTypes.FLOAT,
     defaultValue: 0,
   },
+  driverLastLocationAt: {
+  type: DataTypes.DATE,
+  defaultValue: null,
+},
 }, {
   tableName: 'drivers',
   timestamps: true,

@@ -133,6 +133,25 @@ isFragile: {
   defaultValue: false,
 },
 
+
+driverStatus: {
+  type: DataTypes.ENUM(
+    'assigned',
+    'going_to_pickup',
+    'arrived_pickup',
+    'picked_up',
+    'in_transit',
+    'arrived_drop',
+    'delivered'
+  ),
+  defaultValue: 'assigned',
+},
+
+driverLastLocationAt: {
+  type: DataTypes.DATE,
+  defaultValue: null,
+},
+
 }, {
   tableName: 'orders',
   timestamps: true,

@@ -313,6 +313,40 @@ const verifyDeliveryOtp = async (req, res) => {
   });
 };
 
+
+
+
+
+const getOrderLiveLocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const locationData =
+      await orderService.getOrderLiveLocationService(id);
+
+    return res.status(200).json({
+      success: true,
+      data: locationData,
+    });
+  } catch (error) {
+    if (error.message === 'Order not found') {
+      return res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+
+
+
 module.exports = {
   createOrder,
   getOrders,
@@ -329,5 +363,7 @@ module.exports = {
   verifyPickupOtp,
 
   generateDeliveryOtp,
-  verifyDeliveryOtp
+  verifyDeliveryOtp,
+
+  getOrderLiveLocation
 };
