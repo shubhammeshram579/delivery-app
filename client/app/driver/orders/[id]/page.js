@@ -411,50 +411,122 @@ export default function DriverOrderDetailPage() {
   // ─────────────────────────────────────────────────────────
   // 8. Chat — real-time messages
   // ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const unsub = onChatMessage((msg) => {
-      if (String(msg.orderId) !== String(id)) return;
-      setMessages((prev) => {
-        const exists = prev.some(
-          (m) =>
-            m.id === msg.id ||
-            (m.message === msg.message &&
-              m.senderId === msg.senderId &&
-              new Date(m.createdAt).getTime() === new Date(msg.createdAt).getTime())
-        );
-        return exists ? prev : [...prev, msg];
-      });
-      if (msg.senderId !== user?.id) chatService.markRead(id).catch(() => {});
-    });
-    return unsub;
-  }, [onChatMessage, id, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // useEffect(() => {
+  //   const unsub = onChatMessage((msg) => {
+  //     if (String(msg.orderId) !== String(id)) return;
+  //     setMessages((prev) => {
+  //       const exists = prev.some(
+  //         (m) =>
+  //           m.id === msg.id ||
+  //           (m.message === msg.message &&
+  //             m.senderId === msg.senderId &&
+  //             new Date(m.createdAt).getTime() === new Date(msg.createdAt).getTime())
+  //       );
+  //       return exists ? prev : [...prev, msg];
+  //     });
+  //     if (msg.senderId !== user?.id) chatService.markRead(id).catch(() => {});
+  //   });
+  //   return unsub;
+  // }, [onChatMessage, id, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─────────────────────────────────────────────────────────
-  // 9. Auto-scroll chat
-  // ─────────────────────────────────────────────────────────
+  // // ─────────────────────────────────────────────────────────
+  // // 9. Auto-scroll chat
+  // // ─────────────────────────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ─────────────────────────────────────────────────────────
-  // Handlers
-  // ─────────────────────────────────────────────────────────
+  // // ─────────────────────────────────────────────────────────
+  // // Handlers
+  // // ─────────────────────────────────────────────────────────
 
+  // const sendMsg = () => {
+  //   if (!chatInput.trim()) return;
+  //   // Optimistic UI — add temp message immediately
+  //   const tempMsg = {
+  //     id: `temp-${Date.now()}`,
+  //     orderId: id,
+  //     senderId: user?.id,
+  //     senderRole: "driver",
+  //     message: chatInput,
+  //     createdAt: new Date().toISOString(),
+  //   };
+  //   setMessages((prev) => [...prev, tempMsg]);
+  //   sendChatMessage(id, chatInput, "driver");
+  //   setChatInput("");
+  // };
+
+  // ─────────────────────────────────────────────────────────
+  // 8. Chat — real-time messages (FIXED DEDUPLICATION)
+  // ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onChatMessage((msg) => {
+      if (String(msg.orderId) !== String(id)) return;
+      
+      setMessages((prev) => {
+        // Look for any existing message with the exact same ID
+        const existsById = prev.some((m) => m.id === msg.id);
+        if (existsById) return prev;
+
+        // CRITICAL FIX: Match and replace optimistic temp items 
+        // to prevent duplicate visual flashing on the screen.
+        const isOptimisticMatch = prev.some(
+          (m) =>
+            m.id.toString().startsWith("temp-") &&
+            m.message === msg.message &&
+            m.senderId === msg.senderId
+        );
+
+        if (isOptimisticMatch) {
+          // Swap out the temporary placeholder with the permanent database entry cleanly
+          return prev.map((m) =>
+            m.id.toString().startsWith("temp-") &&
+            m.message === msg.message &&
+            m.senderId === msg.senderId
+              ? msg
+              : m
+          );
+        }
+
+        // Standard append if it's a completely new incoming message from the customer
+        return [...prev, msg];
+      });
+
+      if (msg.senderId !== user?.id) {
+        chatService.markRead(id).catch(() => {});
+      }
+    });
+    
+    return unsub;
+  }, [onChatMessage, id, user?.id]);
+
+
+  // ─────────────────────────────────────────────────────────
+  // Handlers — sendMsg
+  // ─────────────────────────────────────────────────────────
   const sendMsg = () => {
-    if (!chatInput.trim()) return;
-    // Optimistic UI — add temp message immediately
+    const trimmedInput = chatInput.trim();
+    if (!trimmedInput) return;
+
+    // Optimistic UI — add temporary trace message instantly
     const tempMsg = {
       id: `temp-${Date.now()}`,
       orderId: id,
       senderId: user?.id,
       senderRole: "driver",
-      message: chatInput,
+      message: trimmedInput,
       createdAt: new Date().toISOString(),
     };
+
     setMessages((prev) => [...prev, tempMsg]);
-    sendChatMessage(id, chatInput, "driver");
+    
+    // Clear input box immediately for high performance feel
     setChatInput("");
+
+    // Emit out to socket channel safely
+    sendChatMessage(id, trimmedInput, "driver");
   };
+
 
   const handleAccept = async () => {
     try {

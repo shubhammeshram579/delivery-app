@@ -137,7 +137,7 @@ export default function CustomerOrderDetailPage() {
   const user    = useSelector(selectUser);
   const driverLocation = useSelector(selectDriverLocation);
 
-  console.log("driverLocation",driverLocation)
+  // console.log("driverLocation",driverLocation)
 
   const { joinOrderRoom, leaveOrderRoom, sendChatMessage, onChatMessage } = useSocket();
   const { openPayment, loading: payLoading } = useRazorpay();
@@ -572,48 +572,119 @@ useEffect(() => {
   // ─────────────────────────────────────────────────────────
   // 9. Chat — real-time incoming messages
   // ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const unsub = onChatMessage((msg) => {
-      if (String(msg.orderId) !== String(id)) return;
-      setMessages((prev) => {
-        const exists = prev.some(
-          (m) =>
-            m.id === msg.id ||
-            (m.message === msg.message &&
-              m.senderId === msg.senderId &&
-              new Date(m.createdAt).getTime() ===
-                new Date(msg.createdAt).getTime()),
-        );
-        return exists ? prev : [...prev, msg];
-      });
-      if (msg.senderId !== user?.id) chatService.markRead(id).catch(() => {});
-    });
-    return unsub;
-  }, [onChatMessage, id, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // useEffect(() => {
+  //   const unsub = onChatMessage((msg) => {
+  //     if (String(msg.orderId) !== String(id)) return;
+  //     setMessages((prev) => {
+  //       const exists = prev.some(
+  //         (m) =>
+  //           m.id === msg.id ||
+  //           (m.message === msg.message &&
+  //             m.senderId === msg.senderId &&
+  //             new Date(m.createdAt).getTime() ===
+  //               new Date(msg.createdAt).getTime()),
+  //       );
+  //       return exists ? prev : [...prev, msg];
+  //     });
+  //     if (msg.senderId !== user?.id) chatService.markRead(id).catch(() => {});
+  //   });
+  //   return unsub;
+  // }, [onChatMessage, id, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─────────────────────────────────────────────────────────
   // 10. Auto-scroll chat
   // ─────────────────────────────────────────────────────────
-  // useEffect(() => {
-  //   messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  // }, [messages]);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // ─────────────────────────────────────────────────────────
   // Handlers
   // ─────────────────────────────────────────────────────────
+  // const sendMsg = () => {
+  //   if (!chatInput.trim()) return;
+  //   const tempMsg = {
+  //     id: `temp-${Date.now()}`,
+  //     orderId: id,
+  //     senderId: user?.id,
+  //     senderRole: "customer",
+  //     message: chatInput,
+  //     createdAt: new Date().toISOString(),
+  //   };
+  //   setMessages((prev) => [...prev, tempMsg]);
+  //   sendChatMessage(id, chatInput, "customer");
+  //   setChatInput("");
+  // };
+
+  // ─────────────────────────────────────────────────────────
+  // 8. Chat — real-time messages (FIXED DEDUPLICATION)
+  // ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onChatMessage((msg) => {
+      if (String(msg.orderId) !== String(id)) return;
+      
+      setMessages((prev) => {
+        // Look for any existing message with the exact same ID
+        const existsById = prev.some((m) => m.id === msg.id);
+        if (existsById) return prev;
+
+        // CRITICAL FIX: Match and replace optimistic temp items 
+        // to prevent duplicate visual flashing on the screen.
+        const isOptimisticMatch = prev.some(
+          (m) =>
+            m.id.toString().startsWith("temp-") &&
+            m.message === msg.message &&
+            m.senderId === msg.senderId
+        );
+
+        if (isOptimisticMatch) {
+          // Swap out the temporary placeholder with the permanent database entry cleanly
+          return prev.map((m) =>
+            m.id.toString().startsWith("temp-") &&
+            m.message === msg.message &&
+            m.senderId === msg.senderId
+              ? msg
+              : m
+          );
+        }
+
+        // Standard append if it's a completely new incoming message from the customer
+        return [...prev, msg];
+      });
+
+      if (msg.senderId !== user?.id) {
+        chatService.markRead(id).catch(() => {});
+      }
+    });
+    
+    return unsub;
+  }, [onChatMessage, id, user?.id]);
+
+
+  // ─────────────────────────────────────────────────────────
+  // Handlers — sendMsg
+  // ─────────────────────────────────────────────────────────
   const sendMsg = () => {
-    if (!chatInput.trim()) return;
+    const trimmedInput = chatInput.trim();
+    if (!trimmedInput) return;
+
+    // Optimistic UI — add temporary trace message instantly
     const tempMsg = {
       id: `temp-${Date.now()}`,
       orderId: id,
       senderId: user?.id,
-      senderRole: "customer",
-      message: chatInput,
+      senderRole: "driver",
+      message: trimmedInput,
       createdAt: new Date().toISOString(),
     };
+
     setMessages((prev) => [...prev, tempMsg]);
-    sendChatMessage(id, chatInput, "customer");
+    
+    // Clear input box immediately for high performance feel
     setChatInput("");
+
+    // Emit out to socket channel safely
+    sendChatMessage(id, trimmedInput, "customer");
   };
 
   const handlePayOnline = () => {
