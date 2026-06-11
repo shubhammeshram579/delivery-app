@@ -408,26 +408,6 @@ export default function DriverOrderDetailPage() {
       .catch(() => {});
   }, [id]);
 
-  // ─────────────────────────────────────────────────────────
-  // 8. Chat — real-time messages
-  // ─────────────────────────────────────────────────────────
-  // useEffect(() => {
-  //   const unsub = onChatMessage((msg) => {
-  //     if (String(msg.orderId) !== String(id)) return;
-  //     setMessages((prev) => {
-  //       const exists = prev.some(
-  //         (m) =>
-  //           m.id === msg.id ||
-  //           (m.message === msg.message &&
-  //             m.senderId === msg.senderId &&
-  //             new Date(m.createdAt).getTime() === new Date(msg.createdAt).getTime())
-  //       );
-  //       return exists ? prev : [...prev, msg];
-  //     });
-  //     if (msg.senderId !== user?.id) chatService.markRead(id).catch(() => {});
-  //   });
-  //   return unsub;
-  // }, [onChatMessage, id, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // // ─────────────────────────────────────────────────────────
   // // 9. Auto-scroll chat
@@ -436,25 +416,6 @@ export default function DriverOrderDetailPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // // ─────────────────────────────────────────────────────────
-  // // Handlers
-  // // ─────────────────────────────────────────────────────────
-
-  // const sendMsg = () => {
-  //   if (!chatInput.trim()) return;
-  //   // Optimistic UI — add temp message immediately
-  //   const tempMsg = {
-  //     id: `temp-${Date.now()}`,
-  //     orderId: id,
-  //     senderId: user?.id,
-  //     senderRole: "driver",
-  //     message: chatInput,
-  //     createdAt: new Date().toISOString(),
-  //   };
-  //   setMessages((prev) => [...prev, tempMsg]);
-  //   sendChatMessage(id, chatInput, "driver");
-  //   setChatInput("");
-  // };
 
   // ─────────────────────────────────────────────────────────
   // 8. Chat — real-time messages (FIXED DEDUPLICATION)

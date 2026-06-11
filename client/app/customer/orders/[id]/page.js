@@ -52,14 +52,6 @@ const STATUS_ORDER = [
   "delivered",
 ];
 
-// ── Truck SVG as a Data URI (no external dependency) ──────
-// const TRUCK_ICON_SVG = `
-// <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-//   <circle cx="24" cy="24" r="22" fill="#0284c7" stroke="white" stroke-width="2"/>
-//   <text x="24" y="30" text-anchor="middle" font-size="22">🚚</text>
-// </svg>
-// `.trim();
-// const TRUCK_ICON_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(TRUCK_ICON_SVG)}`;
 
 
 // ── Truck SVG as a compressed single-line Data URI ──────
@@ -219,47 +211,7 @@ export default function CustomerOrderDetailPage() {
     loadInitialLocation();
   }, [id, order?.driver, dispatch]);
 
-  // ─────────────────────────────────────────────────────────
-  // 5. Init Google Map (once, when order data is available)
-  // // ─────────────────────────────────────────────────────────
-  // const initMap = useCallback(() => {
-  //   if (!mapRef.current || !order) return;
-
-  //   const pickupLatLng = { lat: order.pickupLat, lng: order.pickupLng };
-  //   const dropLatLng   = { lat: order.dropLat,   lng: order.dropLng   };
-
-  //   const map = new window.google.maps.Map(mapRef.current, {
-  //     zoom: 13,
-  //     center: pickupLatLng,
-  //     mapTypeControl:    false,
-  //     streetViewControl: false,
-  //     fullscreenControl: true,
-  //   });
-  //   mapInstanceRef.current = map;
-
-  //   // Pickup marker (green)
-  //   pickupMarkerRef.current = new window.google.maps.Marker({
-  //     position: pickupLatLng,
-  //     map,
-  //     title: "Pickup",
-  //     icon: { url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png" },
-  //   });
-
-  //   // Drop marker (red)
-  //   dropMarkerRef.current = new window.google.maps.Marker({
-  //     position: dropLatLng,
-  //     map,
-  //     title: "Drop",
-  //     icon: { url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png" },
-  //   });
-
-  //   // Initial static route (pickup → drop) for "pending" state
-  //   drawRoute(map, pickupLatLng, dropLatLng, routeRendererRef, "#035efc"); //#94a3b8
-
-  //   setMapReady(true);
-  // }, [order]); // eslint-disable-line react-hooks/exhaustive-deps
-
-
+ 
   // ─────────────────────────────────────────────────────────
   // 5. Init Google Map (once, when order data is available)
   // ─────────────────────────────────────────────────────────
@@ -308,33 +260,6 @@ export default function CustomerOrderDetailPage() {
 
     setMapReady(true);
   }, [order]);
-
-  // useEffect(() => {
-  //   if (!order) return;
-
-  //   if (window.google?.maps) {
-  //     initMap();
-  //   } else if (process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY) {
-  //     if (!document.getElementById("gmaps-script")) {
-  //       const script      = document.createElement("script");
-  //       script.id         = "gmaps-script";
-  //       script.src        = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}`;
-  //       script.async      = true;
-  //       script.onload     = initMap;
-  //       document.head.appendChild(script);
-  //     } else {
-  //       // Script tag exists but Maps may still be loading
-  //       const check = setInterval(() => {
-  //         if (window.google?.maps) {
-  //           clearInterval(check);
-  //           initMap();
-  //         }
-  //       }, 200);
-  //       return () => clearInterval(check);
-  //     }
-  //   }
-  // }, [order, initMap]);
-
 
   useEffect(() => {
     if (!order) return;
@@ -430,73 +355,7 @@ export default function CustomerOrderDetailPage() {
     }
   }, [order?.status, mapReady, driverLocation]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─────────────────────────────────────────────────────────
-  // 7. Live driver marker — update whenever driverLocation changes
-  //
-  //    • Only shown when driver is assigned (status ≥ accepted, < delivered)
-  //    • Smooth animation between positions (no teleporting)
-  //    • Map pans gently only when driver is far from current viewport center
-  //    • Re-draws route when status is "accepted" (driver → pickup)
-  // ─────────────────────────────────────────────────────────
-  // useEffect(() => {
-  //   if (!mapReady || !mapInstanceRef.current) return;
-
-  //   // Don't show driver marker if no driver or delivery finished
-  //   const activeStatuses = ["accepted", "picked_up", "in_transit"];
-  //   if (!order?.driver || !activeStatuses.includes(order?.status)) return;
-
-  //   if (!driverLocation?.lat || !driverLocation?.lng) return;
-
-  //   const map      = mapInstanceRef.current;
-  //   const position = {
-  //     lat: Number(driverLocation.lat),
-  //     lng: Number(driverLocation.lng),
-  //   };
-
-  //   if (!driverMarkerRef.current) {
-  //     // First time: create the marker
-  //     driverMarkerRef.current = new window.google.maps.Marker({
-  //       position,
-  //       map,
-  //       title: "Driver",
-  //       icon: {
-  //         url:TRUCK_ICON_URL,
-  //         scaledSize: new window.google.maps.Size(40, 40),
-  //         anchor: new window.google.maps.Point(20, 20),
-  //       },
-  //       zIndex: 9999,
-  //     });
-
-  //     // First appearance: pan gently to show driver on map
-  //     map.panTo(position);
-  //   } else {
-  //     // Subsequent updates: smooth animated movement
-  //     animateMarker(
-  //       driverMarkerRef.current,
-  //       position.lat,
-  //       position.lng
-  //     );
-
-  //     // Only pan if driver has moved significantly outside the visible area
-  //     const bounds = map.getBounds();
-  //     if (bounds && !bounds.contains(new window.google.maps.LatLng(position.lat, position.lng))) {
-  //       map.panTo(position);
-  //     }
-  //   }
-
-  //   // Re-draw live route based on current status
-  //   if (order.status === "accepted") {
-  //     // Driver heading to pickup → route: driver → pickup  (orange)
-  //     const pickupLatLng = { lat: order.pickupLat, lng: order.pickupLng };
-  //     drawRoute(map, position, pickupLatLng, routeRendererRef, "#f97316");
-  //   }
-  //   // For picked_up / in_transit the route (pickup→drop) was already drawn
-  //   // in the status-change effect above — no need to redraw every location update.
-
-  // }, [driverLocation, mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
-
-
-
+  
   // ─────────────────────────────────────────────────────────
 // 7. Live driver marker — update whenever driverLocation or status changes
 // ─────────────────────────────────────────────────────────
@@ -569,27 +428,6 @@ useEffect(() => {
       .catch(() => {});
   }, [id]);
 
-  // ─────────────────────────────────────────────────────────
-  // 9. Chat — real-time incoming messages
-  // ─────────────────────────────────────────────────────────
-  // useEffect(() => {
-  //   const unsub = onChatMessage((msg) => {
-  //     if (String(msg.orderId) !== String(id)) return;
-  //     setMessages((prev) => {
-  //       const exists = prev.some(
-  //         (m) =>
-  //           m.id === msg.id ||
-  //           (m.message === msg.message &&
-  //             m.senderId === msg.senderId &&
-  //             new Date(m.createdAt).getTime() ===
-  //               new Date(msg.createdAt).getTime()),
-  //       );
-  //       return exists ? prev : [...prev, msg];
-  //     });
-  //     if (msg.senderId !== user?.id) chatService.markRead(id).catch(() => {});
-  //   });
-  //   return unsub;
-  // }, [onChatMessage, id, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─────────────────────────────────────────────────────────
   // 10. Auto-scroll chat
@@ -598,23 +436,6 @@ useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ─────────────────────────────────────────────────────────
-  // Handlers
-  // ─────────────────────────────────────────────────────────
-  // const sendMsg = () => {
-  //   if (!chatInput.trim()) return;
-  //   const tempMsg = {
-  //     id: `temp-${Date.now()}`,
-  //     orderId: id,
-  //     senderId: user?.id,
-  //     senderRole: "customer",
-  //     message: chatInput,
-  //     createdAt: new Date().toISOString(),
-  //   };
-  //   setMessages((prev) => [...prev, tempMsg]);
-  //   sendChatMessage(id, chatInput, "customer");
-  //   setChatInput("");
-  // };
 
   // ─────────────────────────────────────────────────────────
   // 8. Chat — real-time messages (FIXED DEDUPLICATION)

@@ -3,7 +3,7 @@ const router = express.Router();
 const ctrl = require('../controllers/order.controller');
 const { protect, restrictTo } = require('../middleware/auth.middleware');
 const { createOrderValidator, paginationValidator } = require('../middleware/validator.middleware');
-const { uploadDeliveryProof,} = require("../middleware/upload.middleware");
+const { uploadDeliveryProof} = require("../middleware/upload.middleware");
 
 router.use(protect);
 
