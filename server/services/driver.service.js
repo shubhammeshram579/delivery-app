@@ -13,6 +13,108 @@ const getDriverProfile = async (userId) => {
   return driver;
 };
 
+// const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
+//   const {
+//     name,
+//     phone,
+//     vehicleType,
+//     vehicleNumber,
+//     licenseNumber,
+//     aadhaarNumber
+//   } = updateFields;
+
+//   const driver = await Driver.findOne({ where: { userId: currentUser.id } });
+//   if (!driver) throw new NotFoundError('Driver profile not found');
+
+//   // Validate Enum options early
+//   const allowedVehicles = ['bike', 'scooter', 'car', 'van', 'truck'];
+//   if (vehicleType && !allowedVehicles.includes(vehicleType)) {
+//     throw new ValidationError(`Invalid vehicle type. Choose from: ${allowedVehicles.join(', ')}`);
+//   }
+
+//   // Prevent identity/vehicle duplicates
+//   if (vehicleNumber || licenseNumber || aadhaarNumber) {
+//     const duplicateCheck = await Driver.findOne({
+//       where: {
+//         userId: { [Op.ne]: currentUser.id },
+//         [Op.or]: [
+//           vehicleNumber ? { vehicleNumber } : null,
+//           licenseNumber ? { licenseNumber } : null,
+//           aadhaarNumber ? { aadhaarNumber } : null
+//         ].filter(Boolean)
+//       }
+//     });
+//     if (duplicateCheck) {
+//       throw new ValidationError('Vehicle number, License number, or Aadhaar number is already in use by another account.');
+//     }
+//   }
+
+//   // Use a transactional pipeline block
+//   const transaction = await sequelize.transaction();
+//   let securityResetRequired = false;
+
+//   try {
+//     // Update structural user values
+//     await User.update(
+//       {
+//         name: name || currentUser.name,
+//         phone: phone || currentUser.phone,
+//         avatar: fileUrls.avatar || currentUser.avatar,
+//       },
+//       { where: { id: currentUser.id }, transaction }
+//     );
+
+//     const driverUpdates = {
+//       vehicleType: vehicleType || driver.vehicleType,
+//       vehicleNumber: vehicleNumber || driver.vehicleNumber,
+//     };
+
+//     // Evaluate updates against storage configurations to manage validation conditions
+//     if (licenseNumber && licenseNumber !== driver.licenseNumber) {
+//       driverUpdates.licenseNumber = licenseNumber;
+//       driverUpdates.licenseStatus = 'pending';
+//       securityResetRequired = true;
+//     }
+//     if (fileUrls.licenseUrl) {
+//       driverUpdates.licenseUrl = fileUrls.licenseUrl;
+//       driverUpdates.licenseStatus = 'pending';
+//       securityResetRequired = true;
+//     }
+
+//     if (aadhaarNumber && aadhaarNumber !== driver.aadhaarNumber) {
+//       driverUpdates.aadhaarNumber = aadhaarNumber;
+//       driverUpdates.aadhaarStatus = 'pending';
+//       securityResetRequired = true;
+//     }
+//     if (fileUrls.aadhaarUrl) {
+//       driverUpdates.aadhaarUrl = fileUrls.aadhaarUrl;
+//       driverUpdates.aadhaarStatus = 'pending';
+//       securityResetRequired = true;
+//     }
+
+//     if (fileUrls.vehicleDocumentUrl) {
+//       driverUpdates.vehicleDocumentUrl = fileUrls.vehicleDocumentUrl;
+//       driverUpdates.vehicleDocumentStatus = 'pending';
+//       securityResetRequired = true;
+//     }
+
+//     if (securityResetRequired) {
+//       driverUpdates.isVerified = false;
+//       driverUpdates.rejectionReason = null;
+//     }
+
+//     await Driver.update(driverUpdates, { where: { userId: currentUser.id }, transaction });
+//     await transaction.commit();
+
+//     const freshProfile = await getDriverProfile(currentUser.id);
+//     return { profile: freshProfile, securityResetRequired };
+
+//   } catch (error) {
+//     await transaction.rollback();
+//     throw error;
+//   }
+// };
+
 const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
   const {
     name,
@@ -20,48 +122,64 @@ const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
     vehicleType,
     vehicleNumber,
     licenseNumber,
-    aadhaarNumber
+    aadhaarNumber,
   } = updateFields;
 
-  const driver = await Driver.findOne({ where: { userId: currentUser.id } });
-  if (!driver) throw new NotFoundError('Driver profile not found');
+  const driver = await Driver.findOne({
+    where: { userId: currentUser.id },
+  });
 
-  // Validate Enum options early
-  const allowedVehicles = ['bike', 'scooter', 'car', 'van', 'truck'];
-  if (vehicleType && !allowedVehicles.includes(vehicleType)) {
-    throw new ValidationError(`Invalid vehicle type. Choose from: ${allowedVehicles.join(', ')}`);
+  if (!driver) {
+    throw new NotFoundError("Driver profile not found");
   }
 
-  // Prevent identity/vehicle duplicates
+  // Validate vehicle type
+  const allowedVehicles = ["bike", "scooter", "car", "van", "truck"];
+
+  if (vehicleType && !allowedVehicles.includes(vehicleType)) {
+    throw new ValidationError(
+      `Invalid vehicle type. Choose from: ${allowedVehicles.join(", ")}`
+    );
+  }
+
+  // Duplicate check
   if (vehicleNumber || licenseNumber || aadhaarNumber) {
-    const duplicateCheck = await Driver.findOne({
+    const duplicate = await Driver.findOne({
       where: {
-        userId: { [Op.ne]: currentUser.id },
+        userId: {
+          [Op.ne]: currentUser.id,
+        },
         [Op.or]: [
-          vehicleNumber ? { vehicleNumber } : null,
-          licenseNumber ? { licenseNumber } : null,
-          aadhaarNumber ? { aadhaarNumber } : null
-        ].filter(Boolean)
-      }
+          vehicleNumber && { vehicleNumber },
+          licenseNumber && { licenseNumber },
+          aadhaarNumber && { aadhaarNumber },
+        ].filter(Boolean),
+      },
     });
-    if (duplicateCheck) {
-      throw new ValidationError('Vehicle number, License number, or Aadhaar number is already in use by another account.');
+
+    if (duplicate) {
+      throw new ValidationError(
+        "Vehicle number, License number or Aadhaar number already exists."
+      );
     }
   }
 
-  // Use a transactional pipeline block
   const transaction = await sequelize.transaction();
+
   let securityResetRequired = false;
 
   try {
-    // Update structural user values
+    // Update User table
     await User.update(
       {
         name: name || currentUser.name,
         phone: phone || currentUser.phone,
         avatar: fileUrls.avatar || currentUser.avatar,
       },
-      { where: { id: currentUser.id }, transaction }
+      {
+        where: { id: currentUser.id },
+        transaction,
+      }
     );
 
     const driverUpdates = {
@@ -69,46 +187,90 @@ const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
       vehicleNumber: vehicleNumber || driver.vehicleNumber,
     };
 
-    // Evaluate updates against storage configurations to manage validation conditions
+    // License Number
     if (licenseNumber && licenseNumber !== driver.licenseNumber) {
       driverUpdates.licenseNumber = licenseNumber;
-      driverUpdates.licenseStatus = 'pending';
+      driverUpdates.licenseStatus = "pending";
       securityResetRequired = true;
     }
+
+    // License Image
     if (fileUrls.licenseUrl) {
       driverUpdates.licenseUrl = fileUrls.licenseUrl;
-      driverUpdates.licenseStatus = 'pending';
+      driverUpdates.licenseStatus = "pending";
       securityResetRequired = true;
     }
 
+    // Aadhaar Number
     if (aadhaarNumber && aadhaarNumber !== driver.aadhaarNumber) {
       driverUpdates.aadhaarNumber = aadhaarNumber;
-      driverUpdates.aadhaarStatus = 'pending';
+      driverUpdates.aadhaarStatus = "pending";
       securityResetRequired = true;
     }
+
+    // Aadhaar Image
     if (fileUrls.aadhaarUrl) {
       driverUpdates.aadhaarUrl = fileUrls.aadhaarUrl;
-      driverUpdates.aadhaarStatus = 'pending';
+      driverUpdates.aadhaarStatus = "pending";
       securityResetRequired = true;
     }
 
+    // Vehicle Document
     if (fileUrls.vehicleDocumentUrl) {
       driverUpdates.vehicleDocumentUrl = fileUrls.vehicleDocumentUrl;
-      driverUpdates.vehicleDocumentStatus = 'pending';
+      driverUpdates.vehicleDocumentStatus = "pending";
       securityResetRequired = true;
     }
 
+    // Reset verification if sensitive information changed
     if (securityResetRequired) {
       driverUpdates.isVerified = false;
       driverUpdates.rejectionReason = null;
     }
 
-    await Driver.update(driverUpdates, { where: { userId: currentUser.id }, transaction });
+    // Final values after update
+    const finalDriver = {
+      vehicleType: driverUpdates.vehicleType,
+      vehicleNumber: driverUpdates.vehicleNumber,
+      licenseNumber:
+        driverUpdates.licenseNumber || driver.licenseNumber,
+      aadhaarNumber:
+        driverUpdates.aadhaarNumber || driver.aadhaarNumber,
+      licenseUrl:
+        driverUpdates.licenseUrl || driver.licenseUrl,
+      aadhaarUrl:
+        driverUpdates.aadhaarUrl || driver.aadhaarUrl,
+      vehicleDocumentUrl:
+        driverUpdates.vehicleDocumentUrl ||
+        driver.vehicleDocumentUrl,
+    };
+
+    // Check profile completion
+    driverUpdates.profileCompleted =
+      !!finalDriver.vehicleType &&
+      !!finalDriver.vehicleNumber &&
+      !!finalDriver.licenseNumber &&
+      !!finalDriver.aadhaarNumber &&
+      !!finalDriver.licenseUrl &&
+      !!finalDriver.aadhaarUrl &&
+      !!finalDriver.vehicleDocumentUrl;
+
+    // Update Driver table
+    await Driver.update(driverUpdates, {
+      where: {
+        userId: currentUser.id,
+      },
+      transaction,
+    });
+
     await transaction.commit();
 
     const freshProfile = await getDriverProfile(currentUser.id);
-    return { profile: freshProfile, securityResetRequired };
 
+    return {
+      profile: freshProfile,
+      securityResetRequired,
+    };
   } catch (error) {
     await transaction.rollback();
     throw error;

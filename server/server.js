@@ -9,6 +9,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 
 
 const { sequelize, connectDB } = require('./config/database');
@@ -74,7 +75,9 @@ app.use(morgan('combined', {
 // Razorpay webhooks need raw body — mount before express.json()
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
+app.use(cookieParser()); // Parses req.cookies
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 
 // Global rate limiter
 // const limiter = rateLimit({

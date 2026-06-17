@@ -78,7 +78,8 @@ export const adminService = {
   getRevenueAnalytics:(days)   => api.get('/admin/analytics/revenue', { params: { days } }),
   getUsers:           (params) => api.get('/admin/users', { params }),
   toggleUserStatus:   (id)     => api.patch(`/admin/users/${id}/toggle`),
-  verifyDriver:       (id)     => api.patch(`/admin/drivers/${id}/verify`),
+  verifyDriver:        (id, payload) => api.patch(`/admin/drivers/${id}/verify`, payload),
+  // verifyDriver:       (id)     => api.patch(`/admin/drivers/${id}/verify`),
   getOrders:          (params) => api.get('/admin/orders', { params }),
 };
 

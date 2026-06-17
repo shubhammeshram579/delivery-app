@@ -328,6 +328,10 @@ const Driver = sequelize.define('Driver', {
     type: DataTypes.BOOLEAN,
     defaultValue: false, // Becomes true ONLY when all document statuses are 'approved'
   },
+  profileCompleted: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false, 
+  },
 
   isOnline: {
     type: DataTypes.BOOLEAN,

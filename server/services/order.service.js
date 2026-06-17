@@ -428,6 +428,21 @@ const acceptOrder = async (orderId, driverUserId) => {
       throw new NotFoundError("Driver profile");
     }
 
+    // Profile completion check
+    if (!driver.profileCompleted) {
+      throw new NotFoundError(
+        "Please complete your profile before accepting orders."
+      );
+    }
+
+    // Admin verification check
+    if (!driver.isVerified) {
+      throw new NotFoundError(
+        "Your profile is under review. Please wait for admin approval to start accepting orders."
+      );
+    }
+    
+
     if (!driver.isAvailable) {
       throw new ValidationError("You are already on delivery");
     }
