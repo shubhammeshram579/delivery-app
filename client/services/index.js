@@ -7,9 +7,12 @@ export const authService = {
   verifyEmail:     (data)  => api.post('/auth/verify-email', data),
   resendOtp:       (email) => api.post('/auth/resend-otp', { email }),
   logout:          ()      => api.post('/auth/logout'),
-  forgotPassword:  (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword:   (data)  => api.post('/auth/reset-password', data),
   getMe:           ()      => api.get('/auth/me'),
+  forgotPassword:   (email) => api.post('/auth/forgot-password', { email }),
+  verifyResetOtp:   (data)  => api.post('/auth/verify-reset-otp', data),
+  resetPassword:    (data)  => api.post('/auth/reset-password', data),
+  resendResetOtp:   (email) => api.post('/auth/resend-reset-otp', { email }),
+
 };
 
 // ── Orders ────────────────────────────────────────────────

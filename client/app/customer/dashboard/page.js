@@ -11,7 +11,9 @@ import { StatCard, StatusBadge, LoadingSpinner, EmptyState } from '../../../comp
 import { formatDistanceToNow } from 'date-fns';
 
 export default function CustomerDashboard() {
-  useRequireAuth('customer');
+  // useRequireAuth('customer');
+  const { isAuthenticated, isInitialized } = useRequireAuth('customer');
+
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const orders = useSelector(selectOrders);
@@ -27,6 +29,16 @@ export default function CustomerDashboard() {
     delivered: orders.filter((o) => o.status === 'delivered').length,
     cancelled: orders.filter((o) => o.status === 'cancelled').length,
   };
+
+
+    // KEY: show spinner while auth check is in progress
+  if (!isInitialized || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout role="customer" title="Dashboard">

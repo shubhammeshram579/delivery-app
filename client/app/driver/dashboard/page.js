@@ -13,7 +13,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 export default function DriverDashboard() {
-  useRequireAuth('driver');
+ const { isAuthenticated, isInitialized } =  useRequireAuth('driver');
   const dispatch = useDispatch();
   const orders = useSelector(selectOrders);
   const [profile, setProfile] = useState(null);
@@ -63,6 +63,15 @@ export default function DriverDashboard() {
   };
 
   const activeOrder = orders.find((o) => ['accepted', 'picked_up', 'in_transit'].includes(o.status));
+
+     // KEY: show spinner while auth check is in progress
+  if (!isInitialized || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout role="driver" title="Driver Dashboard">

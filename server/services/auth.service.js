@@ -398,77 +398,206 @@ const logout = async (userId, token) => {
 // Forgot Password
 // ─────────────────────────────────────────────
 
+// const forgotPassword = async (email) => {
+//   email = email.toLowerCase().trim();
+
+//   const user = await User.findOne({
+//     where: { email },
+//   });
+
+//   if (!user) {
+//     return {
+//       message: "If email exists, reset link sent",
+//     };
+//   }
+
+//   const resetToken = crypto.randomBytes(32).toString("hex");
+
+//   await cacheSet(`reset:${resetToken}`, user.id, 30 * 60);
+
+//   const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
+
+//   await sendEmail({
+//     to: email,
+//     subject: "Reset Password",
+//     template: "reset-password",
+//     data: {
+//       name: user.name,
+//       resetUrl,
+//     },
+//   });
+
+//   return {
+//     message: "If email exists, reset link sent",
+//   };
+// };
+
+// // ─────────────────────────────────────────────
+// // Reset Password
+// // ─────────────────────────────────────────────
+
+// const resetPassword = async ({ token, newPassword }) => {
+//   if (!token || !newPassword) {
+//     throw new ValidationError("Token and password required");
+//   }
+
+//   if (newPassword.length < 6) {
+//     throw new ValidationError("Password too short");
+//   }
+
+//   const userId = await cacheGet(`reset:${token}`);
+
+//   if (!userId) {
+//     throw new ValidationError("Invalid or expired token");
+//   }
+
+//   await User.update(
+//     {
+//       password: newPassword,
+//     },
+//     {
+//       where: {
+//         id: userId,
+//       },
+//       individualHooks: true,
+//     },
+//   );
+
+//   await cacheDel(`reset:${token}`);
+
+//   return {
+//     message: "Password reset successfully",
+//   };
+// };
+
+
+// ─────────────────────────────────────────────
+// Forgot Password — Send OTP (not link)
+// ─────────────────────────────────────────────
+
 const forgotPassword = async (email) => {
   email = email.toLowerCase().trim();
 
-  const user = await User.findOne({
-    where: { email },
-  });
+  const user = await User.findOne({ where: { email } });
 
+  // Security: don't reveal if email exists or not
   if (!user) {
-    return {
-      message: "If email exists, reset link sent",
-    };
+    return { message: 'If this email exists, an OTP has been sent' };
   }
 
-  const resetToken = crypto.randomBytes(32).toString("hex");
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  await cacheSet(`reset:${resetToken}`, user.id, 30 * 60);
-
-  const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
+  // Store OTP for 10 minutes
+  await cacheSet(`reset-otp:${email}`, otp, 10 * 60);
 
   await sendEmail({
     to: email,
-    subject: "Reset Password",
-    template: "reset-password",
-    data: {
-      name: user.name,
-      resetUrl,
-    },
+    subject: 'Password Reset OTP',
+    template: 'verify-email', // reuse same OTP template
+    data: { name: user.name, otp },
   });
 
+  return { message: 'If this email exists, an OTP has been sent' };
+};
+
+// ─────────────────────────────────────────────
+// Verify Reset OTP — Returns a short-lived reset token
+// ─────────────────────────────────────────────
+
+const verifyResetOtp = async ({ email, otp }) => {
+  email = email.toLowerCase().trim();
+
+  const cachedOtp = await cacheGet(`reset-otp:${email}`);
+
+  if (!cachedOtp || cachedOtp !== otp) {
+    throw new ValidationError('Invalid or expired OTP');
+  }
+
+  // OTP correct — generate a one-time reset token (valid 15 min)
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  await cacheSet(`reset-token:${resetToken}`, email, 15 * 60);
+
+  // Delete OTP so it can't be reused
+  await cacheDel(`reset-otp:${email}`);
+
   return {
-    message: "If email exists, reset link sent",
+    message: 'OTP verified successfully',
+    resetToken,
   };
 };
 
 // ─────────────────────────────────────────────
-// Reset Password
+// Reset Password — Uses resetToken from verifyResetOtp
 // ─────────────────────────────────────────────
 
-const resetPassword = async ({ token, newPassword }) => {
-  if (!token || !newPassword) {
-    throw new ValidationError("Token and password required");
+const resetPassword = async ({ resetToken, newPassword }) => {
+  if (!resetToken || !newPassword) {
+    throw new ValidationError('Reset token and password required');
   }
 
   if (newPassword.length < 6) {
-    throw new ValidationError("Password too short");
+    throw new ValidationError('Password too short');
   }
 
-  const userId = await cacheGet(`reset:${token}`);
+  const email = await cacheGet(`reset-token:${resetToken}`);
 
-  if (!userId) {
-    throw new ValidationError("Invalid or expired token");
+  if (!email) {
+    throw new ValidationError('Reset session expired. Please start again.');
+  }
+
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    throw new NotFoundError('User');
   }
 
   await User.update(
-    {
-      password: newPassword,
-    },
-    {
-      where: {
-        id: userId,
-      },
-      individualHooks: true,
-    },
+    { password: newPassword },
+    { where: { id: user.id }, individualHooks: true }
   );
 
-  await cacheDel(`reset:${token}`);
+  // Clean up — invalidate the reset token so it can't be reused
+  await cacheDel(`reset-token:${resetToken}`);
 
-  return {
-    message: "Password reset successfully",
-  };
+  // Also invalidate any existing sessions for security
+  await User.update(
+    { refreshToken: null },
+    { where: { id: user.id } }
+  );
+
+  return { message: 'Password reset successfully' };
 };
+
+// ─────────────────────────────────────────────
+// Resend Reset OTP
+// ─────────────────────────────────────────────
+
+const resendResetOtp = async (email) => {
+  email = email.toLowerCase().trim();
+
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    return { message: 'If this email exists, an OTP has been sent' };
+  }
+
+  const existingOtp = await cacheGet(`reset-otp:${email}`);
+  if (existingOtp) {
+    throw new ValidationError('OTP already sent. Please wait before requesting again.');
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  await cacheSet(`reset-otp:${email}`, otp, 10 * 60);
+
+  await sendEmail({
+    to: email,
+    subject: 'New Password Reset OTP',
+    template: 'verify-email',
+    data: { name: user.name, otp },
+  });
+
+  return { message: 'OTP sent successfully' };
+};
+
 
 module.exports = {
   register,
@@ -477,6 +606,9 @@ module.exports = {
   resendEmailOtp,
   refreshAccessToken,
   logout,
+  
   forgotPassword,
+  verifyResetOtp,
   resetPassword,
+  resendResetOtp,
 };

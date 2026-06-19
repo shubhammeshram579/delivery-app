@@ -12,7 +12,7 @@ import {
 import { format } from 'date-fns';
 
 export default function AdminDashboard() {
-  useRequireAuth('admin');
+  const { isAuthenticated, isInitialized } =  useRequireAuth('admin');
   const [stats, setStats] = useState(null);
   const [revenue, setRevenue] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,15 @@ export default function AdminDashboard() {
     };
     load();
   }, []);
+
+     // KEY: show spinner while auth check is in progress
+  if (!isInitialized || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   if (loading) return <DashboardLayout role="admin" title="Dashboard"><LoadingSpinner text="Loading..." /></DashboardLayout>;
 
