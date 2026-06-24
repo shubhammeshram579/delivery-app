@@ -240,10 +240,10 @@ export default function DriverProfilePage() {
                 {previews.avatar ? (
                   <img src={previews.avatar} alt="Profile" className="object-cover w-full h-full" />
                 ) : (
-                  <span className="text-2xl font-bold text-primary-700 ">{formData.name?.[0]}</span>
+                  <span className="text-2xl font-bold text-primary-600 ">{formData.name?.[0]}</span>
                 )}
               </div>
-              <label className="absolute bottom-0 right-0 bg-primary-700 text-white rounded-full p-1.5 cursor-pointer shadow-md hover:bg-slate-800 transition">
+              <label className="absolute bottom-0 right-0 bg-primary-600 text-white rounded-full p-1.5 cursor-pointer shadow-md hover:bg-primary-700 transition">
                 <input type="file" name="avatar" className="hidden" accept="image/*" onChange={handleFileChange} />
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
               </label>
@@ -288,7 +288,7 @@ export default function DriverProfilePage() {
               onClick={() => setActiveTab(tab)}
               className={`py-2.5 px-4 font-medium text-sm border-b-2 whitespace-nowrap transition-all ${
                 activeTab === tab
-                  ? 'border-primary-700 text-slate-900 font-semibold'
+                  ? 'border-primary-600 text-primary-600 font-semibold'
                   : 'border-transparent text-slate-500 hover:text-slate-900'
               }`}
             >

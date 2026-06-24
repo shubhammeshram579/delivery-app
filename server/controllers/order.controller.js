@@ -107,15 +107,18 @@ const createOrder = async (req, res) => {
 };
 
 const getOrders = async (req, res) => {
-  console.log(req.user.id);
+  // console.log(req.user.id);
 
-  const { page, limit, status } = req.query;
+  const { page, limit, status ,orderNumber } = req.query;
+  // console.log("search status",status)
+  // console.log("search data",orderNumber)
   const data = await orderService.getOrders({
     role: req.user.role,
     userId: req.user.id,
     page: parseInt(page) || 1,
     limit: parseInt(limit) || 10,
     status,
+    orderNumber
   });
   res.json({ success: true, data });
 };

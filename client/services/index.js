@@ -54,10 +54,15 @@ export const userService = {
   markOneNotificationRead: (id)    => api.patch(`/users/notifications/read/${id}`),
   deleteNotification: (id)         => api.delete(`/users/notifications/${id}`),
   // Upload uses /uploads/image endpoint (multipart)
-  uploadImage: (formData) =>
-    api.post('/uploads/image', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+  // uploadImage: (formData) =>
+  //   api.post('/uploads/image', formData, {
+  //     headers: { 'Content-Type': 'multipart/form-data' },
+  //   }), 
+  updateAvatar: (data) => api.post('/users/avatar', data, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),  
 };
 
 // ── Drivers ───────────────────────────────────────────────

@@ -51,7 +51,7 @@ export default function AdminUsersPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Name', 'Email', 'Phone', 'Role', 'Joined', 'Status', ''].map((h) => (
+              {['Name', 'Email', 'Phone', 'Role', 'Joined', 'Status', 'Action'].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
               ))}
             </tr>
@@ -67,13 +67,13 @@ export default function AdminUsersPage() {
                 <td className="px-4 py-3"><span className="badge bg-gray-100 text-gray-700 capitalize">{u.role}</span></td>
                 <td className="px-4 py-3 text-gray-400">{format(new Date(u.createdAt), 'dd MMM yyyy')}</td>
                 <td className="px-4 py-3">
-                  <span className={`badge ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  <span className={`badge ${u.isActive ? 'bg-primary-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                     {u.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <button onClick={() => setConfirm(u)} className="p-1.5 hover:bg-gray-100 rounded">
-                    {u.isActive ? <ToggleRight className="h-5 w-5 text-green-500" /> : <ToggleLeft className="h-5 w-5 text-gray-400" />}
+                    {u.isActive ? <ToggleRight className="h-6 w-10 text-primary-600" /> : <ToggleLeft className="h-6 w-10 text-gray-400" />}
                   </button>
                 </td>
               </tr>

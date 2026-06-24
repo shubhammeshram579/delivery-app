@@ -38,14 +38,14 @@ const NAV = {
     { href: "/customer/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/customer/orders", label: "My Orders", icon: Package },
     { href: "/customer/orders/new", label: "New Order", icon: MapPin },
-    { href: "/customer/chat", label: "Messages", icon: MessageSquare },
+    // { href: "/customer/chat", label: "Messages", icon: MessageSquare },
     { href: "/customer/profile", label: "Profile", icon: User },
   ],
   driver: [
     { href: "/driver/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/driver/orders", label: "Available Orders", icon: Package },
     { href: "/driver/earnings", label: "Earnings", icon: Wallet },
-    { href: "/driver/chat", label: "Messages", icon: MessageSquare },
+    // { href: "/driver/chat", label: "Messages", icon: MessageSquare },
     { href: "/driver/profile", label: "Profile", icon: User },
   ],
   admin: [
@@ -53,7 +53,7 @@ const NAV = {
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/drivers", label: "Drivers", icon: Truck },
     { href: "/admin/orders", label: "Orders", icon: Package },
-    { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
+    // { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
   ],
 };
 

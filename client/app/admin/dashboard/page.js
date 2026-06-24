@@ -54,7 +54,7 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout role="admin" title="Admin Dashboard">
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 mb-8">
         <StatCard title="Total Customers" value={stats?.totalUsers?.toLocaleString()} icon={Users} color="blue" />
         <StatCard title="Total Drivers" value={stats?.totalDrivers?.toLocaleString()} icon={Truck} color="purple" />
         <StatCard title="Total Orders" value={stats?.totalOrders?.toLocaleString()} icon={Package} color="orange" />

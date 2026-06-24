@@ -291,114 +291,99 @@ const createOrder = async (customerId, orderData) => {
 // Get Orders
 // ─────────────────────────────────────────────
 
-const getOrders = async ({ role, userId, page = 1, limit = 10, status }) => {
+const getOrders = async ({ role, userId, page = 1, limit = 10, status, orderNumber }) => {
   page = Number(page);
-
   limit = Number(limit);
-
   const offset = (page - 1) * limit;
 
-  const cacheKey = `orders:${role}:${userId}:p${page}:l${limit}:s${status || "all"}`;
-
+  // Cache key construction
+  const cacheKey = `orders:${role}:${userId}:p${page}:l${limit}:s${status || "all"}:n${orderNumber || "all"}`;
   const cached = await cacheGet(cacheKey);
-
   if (cached) {
     return cached;
   }
 
-  const where = {};
+  // Build the base conditions array to safely handle combining AND/OR clauses
+  const andConditions = [];
 
-  // Customer Orders
+  // 1. Role-based filtering
   if (role === "customer") {
-    where.customerId = userId;
-  }
-
-  // Driver Orders
-  if (role === "driver") {
+    andConditions.push({ customerId: userId });
+  } else if (role === "driver") {
     const driver = await Driver.findOne({
-      where: {
-        userId,
-      },
+      where: { userId },
     });
 
     if (!driver) {
-      throw new NotFoundError("Driver profile");
+      throw new NotFoundError("Driver profile not found");
     }
 
-    where[Op.or] = [
-      {
-        driverId: driver.id,
-      },
-
-      {
-        status: "pending",
-      },
-    ];
+    // Drivers see orders assigned to them OR pending orders waiting for a driver
+    andConditions.push({
+      [Op.or]: [
+        { driverId: driver.id },
+        { status: "pending" }
+      ]
+    });
   }
 
-  // Filter by status
+  // 2. Filter by status (Handles driver specific filtering smoothly)
   if (status) {
-    where.status = status;
+    andConditions.push({ status: status });
   }
 
+  // 3. Filter by partial orderNumber (Postgres case-insensitive search)
+  if (orderNumber) {
+    andConditions.push({
+      orderNumber: {
+        [Op.iLike]: `%${orderNumber}%`
+      }
+    });
+  }
+
+  // Combine all conditions into the final where clause
+  const where = andConditions.length > 0 ? { [Op.and]: andConditions } : {};
+
+  // Database Query
   const { count, rows } = await Order.findAndCountAll({
     where,
-
     include: [
       {
         model: User,
-
         as: "customer",
-
         attributes: ["id", "name", "phone", "avatar"],
       },
-
       {
         model: Driver,
-
         as: "driver",
-
         required: false,
-
         include: [
           {
             model: User,
-
             as: "user",
-
             attributes: ["id", "name", "phone", "avatar"],
           },
         ],
       },
-
       {
         model: Payment,
-
         as: "payment",
-
         required: false,
-
         attributes: ["status", "method", "amount"],
       },
     ],
-
     order: [["createdAt", "DESC"]],
-
     limit,
-
     offset,
+    distinct: true, // Crucial when using findAndCountAll with 'include' to get correct pagination counts
   });
 
   const result = {
     orders: rows,
-
     pagination: {
       total: count,
-
       page,
-
       limit,
-
       totalPages: Math.ceil(count / limit),
     },
   };

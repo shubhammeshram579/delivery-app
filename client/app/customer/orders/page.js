@@ -20,9 +20,15 @@ export default function CustomerOrdersPage() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
 
+  console.log(orders)
+
+  
+
+
+
   useEffect(() => {
-    dispatch(fetchOrders({ page, limit: 10, status: status || undefined }));
-  }, [page, status, dispatch]);
+    dispatch(fetchOrders({ page, limit: 10, status: status || undefined , orderNumber:search }));
+  }, [page, status,search, dispatch]);
 
   return (
     <DashboardLayout role="customer" title="My Orders">
