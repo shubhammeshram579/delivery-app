@@ -1,82 +1,10 @@
-// 'use client';
-// import { useEffect, useState } from 'react';
-// import { useRequireAuth } from '../../../components/shared/AuthGuard';
-// import { DashboardLayout } from '../../../components/shared/Layout';
-// import { LoadingSpinner, EmptyState } from '../../../components/ui';
-// import { adminService } from '../../../services/index';
-// import { CheckCircle, Truck } from 'lucide-react';
-// import toast from 'react-hot-toast';
-
-// export default function AdminDriversPage() {
-//   useRequireAuth('admin');
-//   const [users, setUsers] = useState([]);
-//   const [loading, setLoading] = useState(true);
-
-//   console.log("Users",users);
-
-//   const load = async () => {
-//     setLoading(true);
-//     try {
-//       const res = await adminService.getUsers({ role: 'driver', limit: 50 });
-//       setUsers(res.data.data.users);
-//     } catch (e) { console.error(e); }
-//     finally { setLoading(false); }
-//   };
-
-//   useEffect(() => { load(); }, []);
-
-//   const verify = async (driverId) => {
-//     try {
-//       await adminService.verifyDriver(driverId);
-//       toast.success('Driver verified');
-//       load();
-//     } catch { toast.error('Failed'); }
-//   };
-
-//   return (
-//     <DashboardLayout role="admin" title="Drivers">
-//       <div className="card overflow-hidden">
-//         <table className="w-full text-sm">
-//           <thead className="bg-gray-50 border-b">
-//             <tr>
-//               {['Name', 'Email', 'Phone', 'Joined', 'Action'].map((h) => (
-//                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
-//               ))}
-//             </tr>
-//           </thead>
-//           <tbody className="divide-y divide-gray-50">
-//             {loading ? (
-//               <tr><td colSpan={5}><LoadingSpinner /></td></tr>
-//             ) : users.length === 0 ? (
-//               <tr><td colSpan={5}><EmptyState icon={Truck} title="No drivers yet" /></td></tr>
-//             ) : users.map((u) => (
-//               <tr key={u.id} className="hover:bg-gray-50">
-//                 <td className="px-4 py-3 font-medium">{u.name}</td>
-//                 <td className="px-4 py-3 text-gray-500">{u.email}</td>
-//                 <td className="px-4 py-3 text-gray-500">{u.phone}</td>
-//                 <td className="px-4 py-3 text-gray-400">{new Date(u.createdAt).toLocaleDateString()}</td>
-//                 <td className="px-4 py-3">
-//                   <button onClick={() => verify(u?.id)} className="btn-primary py-1 px-3 text-xs flex items-center gap-1">
-//                     <CheckCircle className="h-3 w-3" /> Verify
-//                   </button>
-//                 </td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//     </DashboardLayout>
-//   );
-// }
-
-
 'use client';
 import { useEffect, useState } from 'react';
 import { useRequireAuth } from '../../../components/shared/AuthGuard';
 import { DashboardLayout } from '../../../components/shared/Layout';
-import { LoadingSpinner, EmptyState } from '../../../components/ui';
+import { LoadingSpinner, EmptyState, Pagination } from '../../../components/ui';
 import { adminService } from '../../../services/index';
-import { Eye, ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import { Eye, ShieldAlert, ShieldCheck, X, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AdminDriversPage() {
@@ -84,9 +12,14 @@ export default function AdminDriversPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  console.log("users",users)
+  // Real-world state configurations matching updated API structure
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [search, setSearch] = useState('');
+  const [isVerified, setIsVerified] = useState(''); // Options: '', 'true', 'false'
 
-  
   // Modal tracking states
   const [selectedUser, setSelectedUser] = useState(null);
   const [reviewPayload, setReviewPayload] = useState({
@@ -97,14 +30,21 @@ export default function AdminDriversPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
-    console.log("selectedUser",selectedUser)
-
   const load = async () => {
     setLoading(true);
     try {
-      // Ensure backend yields the associated driver properties inside user objects
-      const res = await adminService.getUsers({ role: 'driver', limit: 50 });
-      setUsers(res.data.data.users);
+      const res = await adminService.getUsers({ 
+        role: 'driver', 
+        page,
+        limit: pageSize,
+        search: search || undefined,
+        isVerified: isVerified !== '' ? isVerified : undefined
+      });
+      
+      const { users, totalItems, totalPages } = res.data.data;
+      setUsers(users);
+      setTotalItems(totalItems);
+      setTotalPages(totalPages);
     } catch (e) {
       console.error(e);
       toast.error('Could not fetch drivers registry.');
@@ -113,12 +53,18 @@ export default function AdminDriversPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { 
+    load(); 
+  }, [page, pageSize, search, isVerified]);
 
-  // Open active modal and populate current document state references
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setPage(1); 
+  };
+
   const openReviewModal = (user) => {
     setSelectedUser(user);
-    const d = user.driver || {};
+    const d = user.driverProfile || {};
     setReviewPayload({
       licenseStatus: d.licenseStatus || 'pending',
       aadhaarStatus: d.aadhaarStatus || 'pending',
@@ -131,7 +77,6 @@ export default function AdminDriversPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // Must point to: PUT/PATCH /api/admin/drivers/:userId/verify
       await adminService.verifyDriver(selectedUser.id, reviewPayload);
       toast.success('Driver compliance records updated successfully.');
       setSelectedUser(null);
@@ -145,6 +90,33 @@ export default function AdminDriversPage() {
 
   return (
     <DashboardLayout role="admin" title="Drivers Verification Portal">
+      {/* Top Filter & Search Action Control Row */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5 justify-between">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input 
+            placeholder="Search driver profiles..." 
+            value={search} 
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }} 
+            className="input-field pl-9 w-full bg-white border border-slate-200 p-2 rounded-xl text-sm" 
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-primary-600" />
+          <select
+            value={isVerified}
+            onChange={(e) => { setIsVerified(e.target.value); setPage(1); }}
+            // className="bg-white text-slate-700 text-sm font-medium rounded-xl border border-slate-200 px-3 py-2 cursor-pointer focus:outline-none focus:border-slate-400"
+             className="input-field w-auto capitalize"
+          >
+            <option value="">All Verification Status</option>
+            <option value="true">Approved</option>
+            <option value="false">Pending / Rejected</option>
+          </select>
+        </div>
+      </div>
+
       <div className="card overflow-hidden bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -159,9 +131,9 @@ export default function AdminDriversPage() {
               {loading ? (
                 <tr><td colSpan={6} className="py-12"><LoadingSpinner /></td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={6}><EmptyState icon={Eye} title="No registration files awaiting processing" /></td></tr>
+                <tr><td colSpan={6} className="py-12"><EmptyState icon={Eye} title="No registration files found" /></td></tr>
               ) : users.map((u) => (
-                <tr key={u.id} className="hover:bg-slate-5/30 transition">
+                <tr key={u.id} className="hover:bg-slate-50/50 transition">
                   <td className="px-6 py-4 font-medium text-slate-900">{u.name}</td>
                   <td className="px-6 py-4 text-slate-500">{u.email}</td>
                   <td className="px-6 py-4 text-slate-500">{u.phone}</td>
@@ -174,11 +146,11 @@ export default function AdminDriversPage() {
                       <span className="inline-flex items-center gap-1 text-xs font-semibold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-md border border-amber-200">🕒 Awaiting Check</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-slate-400">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-slate-400">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
                   <td className="px-6 py-4">
                     <button 
                       onClick={() => openReviewModal(u)} 
-                      className="inline-flex items-center gap-1 bg-primary-600 text-white hover:bg-primary-700 font-medium text-xs py-1.5 px-3 rounded-md transition shadow-sm"
+                      className="inline-flex items-center gap-1 bg-slate-100 text-primary-600 hover:bg-primary-600 hover:text-white font-medium text-xs py-1.5 px-3 rounded-md transition shadow-sm"
                     >
                       <Eye className="h-3.5 w-3.5" /> Review Docs
                     </button>
@@ -187,6 +159,18 @@ export default function AdminDriversPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Dynamic Pagination Panel */}
+        <div className="px-4 py-3 border-t border-slate-100">
+          <Pagination 
+            page={page} 
+            totalPages={totalPages} 
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={setPage} 
+            onPageSizeChange={handlePageSizeChange}
+          />
         </div>
       </div>
 
@@ -208,7 +192,6 @@ export default function AdminDriversPage() {
 
             {/* Document Review Body */}
             <form onSubmit={submitVerificationReview} className="overflow-y-auto p-6 space-y-6 flex-1">
-              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
                 {/* LICENSE CARD DOC */}
@@ -300,7 +283,7 @@ export default function AdminDriversPage() {
 
               </div>
 
-              {/* Rejection Log Input (Conditional Requirement) */}
+              {/* Rejection Log Input */}
               {(reviewPayload.licenseStatus === 'rejected' || 
                 reviewPayload.aadhaarStatus === 'rejected' || 
                 reviewPayload.vehicleDocumentStatus === 'rejected') && (
@@ -312,7 +295,7 @@ export default function AdminDriversPage() {
                     required
                     value={reviewPayload.rejectionReason}
                     onChange={(e) => setReviewPayload(p => ({ ...p, rejectionReason: e.target.value }))}
-                    placeholder="Provide a clear description of the issue to help the driver fix it (e.g., 'Aadhaar document copy blurred, please re-upload clear shot...')"
+                    placeholder="Provide a clear description of the issue to help the driver fix it..."
                     className="w-full border border-red-200 bg-red-50/20 rounded-lg p-2.5 text-sm focus:outline-red-500 h-20"
                   />
                 </div>
@@ -330,7 +313,7 @@ export default function AdminDriversPage() {
                 <button 
                   type="submit" 
                   disabled={submitting}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs py-2 px-5 rounded-lg transition flex items-center gap-1.5 disabled:opacity-50"
+                  className="bg-primary-600 hover:bg-primary-700 text-white font-medium text-xs py-2 px-5 rounded-lg transition flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {submitting ? <LoadingSpinner /> : <ShieldCheck className="h-3.5 w-3.5" />} Save Review Decision
                 </button>

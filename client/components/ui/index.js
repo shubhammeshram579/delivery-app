@@ -2,6 +2,7 @@
 import { useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, PackageSearch, AlertCircle } from 'lucide-react';
 
+
 // ── LoadingSpinner ────────────────────────────────────────
 export function LoadingSpinner({ size = 'md', fullscreen = false, text }) {
   const sizes = { sm: 'h-4 w-4', md: 'h-8 w-8', lg: 'h-12 w-12' };
@@ -48,50 +49,177 @@ export function StatusBadge({ status }) {
 }
 
 // ── Pagination ────────────────────────────────────────────
-export function Pagination({ page, totalPages, onPageChange }) {
-  if (totalPages <= 1) return null;
+// export function Pagination({ page, totalPages, onPageChange }) {
+//   if (totalPages <= 1) return null;
+
+//   return (
+//     <div className="flex items-center justify-center gap-2 mt-6">
+//       <button
+//         onClick={() => onPageChange(page - 1)}
+//         disabled={page === 1}
+//         className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+//       >
+//         <ChevronLeft className="h-4 w-4" />
+//       </button>
+
+//       <div className="flex gap-1">
+//         {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+//           let pageNum;
+//           if (totalPages <= 5) pageNum = i + 1;
+//           else if (page <= 3) pageNum = i + 1;
+//           else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
+//           else pageNum = page - 2 + i;
+
+//           return (
+//             <button
+//               key={pageNum}
+//               onClick={() => onPageChange(pageNum)}
+//               className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+//                 pageNum === page
+//                   ? 'bg-primary-600 text-white'
+//                   : 'hover:bg-gray-100 text-gray-700'
+//               }`}
+//             >
+//               {pageNum}
+//             </button>
+//           );
+//         })}
+//       </div>
+
+//       <button
+//         onClick={() => onPageChange(page + 1)}
+//         disabled={page === totalPages}
+//         className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+//       >
+//         <ChevronRight className="h-4 w-4" />
+//       </button>
+//     </div>
+//   );
+// }
+
+
+
+export function Pagination({ 
+  page, 
+  totalPages, 
+  pageSize, 
+  onPageChange, 
+  onPageSizeChange 
+}) {
+  // if (totalPages <= 1) return null;
+
+  // Logic to calculate page numbers with ellipsis (...)
+  const getPageNumbers = () => {
+    const siblingCount = 1;
+    const totalPageNumbers = 5; // Configured for a tight, clean look
+
+    if (totalPages <= totalPageNumbers) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    const leftSiblingIndex = Math.max(page - siblingCount, 1);
+    const rightSiblingIndex = Math.min(page + siblingCount, totalPages);
+
+    const shouldShowLeftDots = leftSiblingIndex > 2;
+    const shouldShowRightDots = rightSiblingIndex < totalPages - 1;
+
+    if (!shouldShowLeftDots && shouldShowRightDots) {
+      return [1, 2, 3, 'DOTS', totalPages];
+    }
+
+    if (shouldShowLeftDots && !shouldShowRightDots) {
+      return [1, 'DOTS', totalPages - 2, totalPages - 1, totalPages];
+    }
+
+    return [1, 'DOTS', page, 'DOTS', totalPages];
+  };
+
+  const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex items-center justify-center gap-2 mt-6">
-      <button
-        onClick={() => onPageChange(page - 1)}
-        disabled={page === 1}
-        className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-
-      <div className="flex gap-1">
-        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-          let pageNum;
-          if (totalPages <= 5) pageNum = i + 1;
-          else if (page <= 3) pageNum = i + 1;
-          else if (page >= totalPages - 2) pageNum = totalPages - 4 + i;
-          else pageNum = page - 2 + i;
-
-          return (
-            <button
-              key={pageNum}
-              onClick={() => onPageChange(pageNum)}
-              className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                pageNum === page
-                  ? 'bg-primary-600 text-white'
-                  : 'hover:bg-gray-100 text-gray-700'
-              }`}
-            >
-              {pageNum}
-            </button>
-          );
-        })}
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-6 py-4 text-black select-none">
+      
+      {/* Left Section: Rows Per Page Selector (Matches image_31f9bd.png) */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-normal text-gray-700 tracking-wide">
+          Rows per page
+        </span>
+        <div className="relative">
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange?.(Number(e.target.value))}
+            className="appearance-none bg-slate-100 text-primary-600 text-sm font-medium rounded-xl border border-slate-200 pl-4 pr-10 py-2 cursor-pointer transition-colors focus:outline-none focus:border-slate-300 min-w-[70px]"
+          >
+            {[10, 25, 50, 100].map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+          {/* Custom Arrow matching the clean down chevron */}
+          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-gray-400">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
       </div>
 
-      <button
-        onClick={() => onPageChange(page + 1)}
-        disabled={page === totalPages}
-        className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
+      {/* Right Section: Navigation Links (Matches image_31f960.png) */}
+      <div className="flex items-center gap-4 text-sm font-medium">
+        {/* Previous Button */}
+        <button
+          onClick={() => onPageChange(page - 1)}
+          disabled={page === 1}
+          className="flex items-center gap-2 px-2 py-1 text-black disabled:opacity-30 disabled:cursor-not-allowed transition-opacity hover:opacity-80"
+        >
+          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+          <span>Previous</span>
+        </button>
+
+        {/* Number Array Track */}
+        <div className="flex items-center gap-1">
+          {pageNumbers.map((pageNum, index) => {
+            if (pageNum === 'DOTS') {
+              return (
+                <span
+                  key={`dots-${index}`}
+                  className="w-10 h-10 flex items-center justify-center text-black font-bold tracking-widest px-1"
+                >
+                  ...
+                </span>
+              );
+            }
+
+            const isSelected = pageNum === page;
+
+            return (
+              <button
+                key={pageNum}
+                onClick={() => onPageChange(Number(pageNum))}
+                className={`w-10 h-10 rounded-xl font-medium text-sm transition-all flex items-center justify-center ${
+                  isSelected
+                    ? 'bg-slate-100 text-primary-600 border border-slate-200 shadow-md'
+                    : 'text-black hover:bg-slate-100 hover:text-primary-600'
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Next Button */}
+        <button
+          onClick={() => onPageChange(page + 1)}
+          disabled={page === totalPages}
+          className="flex items-center gap-2 px-2 py-1 text-black disabled:opacity-30 disabled:cursor-not-allowed transition-opacity hover:opacity-80"
+        >
+          <span>Next</span>
+          <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+        </button>
+      </div>
+
     </div>
   );
 }

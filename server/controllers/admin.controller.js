@@ -54,48 +54,80 @@ const getRevenueAnalytics = async (req, res) => {
 
 
 const getAllUsers = async (req, res) => {
-  const { page = 1, limit = 20, role, search } = req.query;
+  // 1. Extract parameters and set default fallback values safely
+  const { page = 1, limit = 10, role, search, status, isVerified } = req.query;
   
-  // 1. Build the base user filtering condition
-  const where = { role: role || { [Op.ne]: 'admin' } };
+  // Parse inputs to integers to prevent offset strings or NaN issues
+  const parsedPage = Math.max(1, parseInt(page, 10));
+  const parsedLimit = Math.max(1, parseInt(limit, 10));
+
+  // 2. Build the base user filtering condition
+  const where = { 
+    role: role || { [Op.ne]: 'admin' } 
+  };
+  
+  // Dynamically add global user active status filtering if provided
+  if (status) {
+    where.isActive = status === 'active'; 
+  }
   
   if (search) {
     where[Op.or] = [
       { name: { [Op.iLike]: `%${search}%` } },
       { email: { [Op.iLike]: `%${search}%` } },
+      { phone: { [Op.iLike]: `%${search}%` } },
     ];
   }
 
-  // 2. Dynamically handle inclusion profiles
+  // 3. Dynamically handle inclusion profiles & verification filters
   const include = [];
 
-  // If the admin is filtering explicitly for drivers, eagerly load their document data
   if (role === 'driver') {
+    const driverWhere = {};
+    
+    // Check if filtering by verified status ('true' or 'false' from frontend)
+    if (isVerified !== undefined && isVerified !== '') {
+      driverWhere.isVerified = isVerified === 'true';
+    }
+
     include.push({
       model: Driver,
-      as: 'driverProfile', 
+      as: 'driverProfile',
+      // If filtering by verification, force an INNER JOIN, otherwise keep LEFT OUTER JOIN
+      required: isVerified !== undefined && isVerified !== '',
+      where: Object.keys(driverWhere).length > 0 ? driverWhere : undefined
     });
   }
 
-  // 3. Execute query with dynamic inclusions
+  // 4. Calculate offset window criteria
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  // 5. Execute query with dynamic limitations & conditions
   const { count, rows } = await User.findAndCountAll({
     where,
     attributes: { exclude: ['password', 'refreshToken'] },
-    include, // Injected dynamically here
+    include, 
     order: [['createdAt', 'DESC']],
-    limit: parseInt(limit),
-    offset: (parseInt(page) - 1) * parseInt(limit),
+    limit: parsedLimit,
+    offset: offset,
   });
 
+  // 6. Calculate total pages dynamically based on filtered total records
+  const totalPages = Math.ceil(count / parsedLimit);
+
+  // 7. Return metadata exactly mapped to what your UI expects
   res.json({ 
     success: true, 
     data: { 
       users: rows, 
-      total: count, 
-      page: parseInt(page) 
+      totalItems: count,          
+      totalPages: totalPages || 1, 
+      page: parsedPage,           
+      pageSize: parsedLimit       
     } 
   });
 };
+
 
 const toggleUserStatus = async (req, res) => {
   const user = await User.findByPk(req.params.id);
@@ -169,27 +201,100 @@ const verifyDriver = async (req, res) => {
 };
 
 const getAllOrders = async (req, res) => {
-  const { page = 1, limit = 20, status } = req.query;
+  // 1. Extract parameters and set real-world defaults
+  const { page = 1, limit = 25, status, search } = req.query;
+
+  const parsedPage = Math.max(1, parseInt(page, 10));
+  const parsedLimit = Math.max(1, parseInt(limit, 10));
+  const offset = (parsedPage - 1) * parsedLimit;
+
+  // 2. Build the base order filtering condition (e.g., filter by Order status)
   const where = status ? { status } : {};
 
+  // 3. Define the nested search conditions if a search query exists
+  let customerWhere = null;
+  let driverUserWhere = null;
+
+  if (search) {
+    // Condition applied to Customer (User model)
+    customerWhere = {
+      [Op.or]: [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ]
+    };
+
+    // Condition applied to Driver's User profile
+    driverUserWhere = {
+      [Op.or]: [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ]
+    };
+  }
+
+  // 4. Execute findAndCountAll with conditional inclusions
+  // Note: We use subQuery: false if filtering by deep inclusions to ensure correct limits/offsets
   const { count, rows } = await Order.findAndCountAll({
     where,
+    subQuery: false, 
     include: [
-      { model: User, as: 'customer', attributes: ['id', 'name', 'email', 'phone'] },
+      { 
+        model: User, 
+        as: 'customer', 
+        attributes: ['id', 'name', 'email', 'phone'],
+        where: search ? customerWhere : undefined,
+        required: search ? false : true // Make optional during search to allow driver matches
+      },
       {
         model: Driver,
         as: 'driver',
         required: false,
-        include: [{ model: User, as: 'user', attributes: ['id', 'name', 'phone'] }],
+        include: [{ 
+          model: User, 
+          as: 'user', 
+          attributes: ['id', 'name', 'phone'],
+          where: search ? driverUserWhere : undefined,
+          required: search ? false : true
+        }],
       },
-      { model: Payment, as: 'payment', attributes: ['status', 'amount'], required: false },
+      { 
+        model: Payment, 
+        as: 'payment', 
+        attributes: ['status', 'amount'], 
+        required: false 
+      },
     ],
+    // 5. If global search is active, ensure we find orders matching EITHER customer OR driver attributes
+    ...(search && {
+      where: {
+        ...where,
+        [Op.or]: [
+          { '$customer.name$': { [Op.iLike]: `%${search}%` } },
+          { '$customer.email$': { [Op.iLike]: `%${search}%` } },
+          { '$driver.user.name$': { [Op.iLike]: `%${search}%` } }
+        ]
+      }
+    }),
     order: [['createdAt', 'DESC']],
-    limit: parseInt(limit),
-    offset: (parseInt(page) - 1) * parseInt(limit),
+    limit: parsedLimit,
+    offset: offset,
   });
 
-  res.json({ success: true, data: { orders: rows, total: count } });
+  // 6. Calculate total pages for your frontend template UI track
+  const totalPages = Math.ceil(count / parsedLimit);
+
+  res.json({ 
+    success: true, 
+    data: { 
+      orders: rows, 
+      totalItems: count,
+      totalPages: totalPages || 1,
+      page: parsedPage,
+      pageSize: parsedLimit
+    } 
+  });
 };
 
 module.exports = {
