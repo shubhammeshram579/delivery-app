@@ -45,7 +45,13 @@ const DRIVER_ICON_SVG = `
 const DRIVER_ICON_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(DRIVER_ICON_SVG)}`;
 
 // ── Smooth marker animation (ease-out cubic, ~800ms) ───────
-function animateMarker(marker, targetLat, targetLng, steps = 60, durationMs = 800) {
+function animateMarker(
+  marker,
+  targetLat,
+  targetLng,
+  steps = 60,
+  durationMs = 800,
+) {
   const startPos = marker.getPosition();
   if (!startPos) return;
   const startLat = startPos.lat();
@@ -57,7 +63,10 @@ function animateMarker(marker, targetLat, targetLng, steps = 60, durationMs = 80
     step++;
     const eased = 1 - Math.pow(1 - step / steps, 3);
     marker.setPosition(
-      new window.google.maps.LatLng(startLat + dLat * eased, startLng + dLng * eased)
+      new window.google.maps.LatLng(
+        startLat + dLat * eased,
+        startLng + dLng * eased,
+      ),
     );
     if (step >= steps) clearInterval(iv);
   }, durationMs / steps);
@@ -84,7 +93,7 @@ function drawRoute(map, origin, destination, rendererRef, color = "#2563eb") {
     },
     (result, status) => {
       if (status === "OK") dr.setDirections(result);
-    }
+    },
   );
 }
 
@@ -109,8 +118,13 @@ export default function DriverOrderDetailPage() {
   const locationRef = useRef(null); // always holds latest location for interval
   locationRef.current = location;
 
-  const { joinOrderRoom, leaveOrderRoom, sendChatMessage, onChatMessage, updateLocation } =
-    useSocket();
+  const {
+    joinOrderRoom,
+    leaveOrderRoom,
+    sendChatMessage,
+    onChatMessage,
+    updateLocation,
+  } = useSocket();
 
   // ── Location broadcast interval ref ───────────────────
   const locationIntervalRef = useRef(null);
@@ -152,6 +166,8 @@ export default function DriverOrderDetailPage() {
 
   // Track previous order status to avoid re-running map transitions
   const prevStatusRef = useRef(null);
+
+  const isPassenger = order?.orderType === "passenger";
 
   // ─────────────────────────────────────────────────────────
   // 1. Load order
@@ -305,7 +321,10 @@ export default function DriverOrderDetailPage() {
     }
 
     if (order.status === "accepted" && locationRef.current) {
-      const driverPos = { lat: locationRef.current.lat, lng: locationRef.current.lng };
+      const driverPos = {
+        lat: locationRef.current.lat,
+        lng: locationRef.current.lng,
+      };
       drawRoute(map, driverPos, pickupLatLng, routeRendererRef, "#f97316"); // orange: driver→pickup
       const bounds = new window.google.maps.LatLngBounds();
       bounds.extend(driverPos);
@@ -388,7 +407,10 @@ export default function DriverOrderDetailPage() {
 
       // Pan gently only if driver moves completely outside the visible viewport
       const bounds = map.getBounds();
-      if (bounds && !bounds.contains(new window.google.maps.LatLng(pos.lat, pos.lng))) {
+      if (
+        bounds &&
+        !bounds.contains(new window.google.maps.LatLng(pos.lat, pos.lng))
+      ) {
         map.panTo(pos);
       }
     }
@@ -408,7 +430,6 @@ export default function DriverOrderDetailPage() {
       .catch(() => {});
   }, [id]);
 
-
   // // ─────────────────────────────────────────────────────────
   // // 9. Auto-scroll chat
   // // ─────────────────────────────────────────────────────────
@@ -416,26 +437,25 @@ export default function DriverOrderDetailPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-
   // ─────────────────────────────────────────────────────────
   // 8. Chat — real-time messages (FIXED DEDUPLICATION)
   // ─────────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = onChatMessage((msg) => {
       if (String(msg.orderId) !== String(id)) return;
-      
+
       setMessages((prev) => {
         // Look for any existing message with the exact same ID
         const existsById = prev.some((m) => m.id === msg.id);
         if (existsById) return prev;
 
-        // CRITICAL FIX: Match and replace optimistic temp items 
+        // CRITICAL FIX: Match and replace optimistic temp items
         // to prevent duplicate visual flashing on the screen.
         const isOptimisticMatch = prev.some(
           (m) =>
             m.id.toString().startsWith("temp-") &&
             m.message === msg.message &&
-            m.senderId === msg.senderId
+            m.senderId === msg.senderId,
         );
 
         if (isOptimisticMatch) {
@@ -445,7 +465,7 @@ export default function DriverOrderDetailPage() {
             m.message === msg.message &&
             m.senderId === msg.senderId
               ? msg
-              : m
+              : m,
           );
         }
 
@@ -457,10 +477,9 @@ export default function DriverOrderDetailPage() {
         chatService.markRead(id).catch(() => {});
       }
     });
-    
+
     return unsub;
   }, [onChatMessage, id, user?.id]);
-
 
   // ─────────────────────────────────────────────────────────
   // Handlers — sendMsg
@@ -480,14 +499,13 @@ export default function DriverOrderDetailPage() {
     };
 
     setMessages((prev) => [...prev, tempMsg]);
-    
+
     // Clear input box immediately for high performance feel
     setChatInput("");
 
     // Emit out to socket channel safely
     sendChatMessage(id, trimmedInput, "driver");
   };
-
 
   const handleAccept = async () => {
     try {
@@ -530,7 +548,10 @@ export default function DriverOrderDetailPage() {
   };
 
   const handleVerifyOtp = async () => {
-    if (otpInput.length !== 6) { toast.error("Enter 6-digit OTP"); return; }
+    if (otpInput.length !== 6) {
+      toast.error("Enter 6-digit OTP");
+      return;
+    }
     try {
       setOtpLoading(true);
       await orderService.verifyPickupOtp(id, otpInput);
@@ -561,7 +582,10 @@ export default function DriverOrderDetailPage() {
   };
 
   const handleVerifyDeliveryOtp = async () => {
-    if (deliveryOtp.length !== 6) { toast.error("Enter 6-digit OTP"); return; }
+    if (deliveryOtp.length !== 6) {
+      toast.error("Enter 6-digit OTP");
+      return;
+    }
     try {
       setOtpLoading(true);
       await orderService.verifyDeliveryOtp(order.id, deliveryOtp);
@@ -586,7 +610,10 @@ export default function DriverOrderDetailPage() {
   };
 
   const handleProofSubmit = async () => {
-    if (!proofFile) { toast.error("Please select a photo"); return; }
+    if (!proofFile) {
+      toast.error("Please select a photo");
+      return;
+    }
     try {
       setProofLoading(true);
       const formData = new FormData();
@@ -662,14 +689,12 @@ export default function DriverOrderDetailPage() {
   return (
     <DashboardLayout role="driver" title={`Order #${order.orderNumber}`}>
       <div className="grid lg:grid-cols-5 gap-5">
-
         {/* ── Left column ─────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-4">
-
           {/* Status + Addresses */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-800">Order Status</h3>
+              <h3 className="font-semibold text-gray-800">{isPassenger ? "Booking" : "Order Status"}</h3>
               <StatusBadge status={order.status} />
             </div>
 
@@ -679,10 +704,14 @@ export default function DriverOrderDetailPage() {
                 <MapPin className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400">Pickup</p>
-                  <p className="text-sm text-gray-700 truncate">{order.pickupAddress}</p>
+                  <p className="text-sm text-gray-700 truncate">
+                    {order.pickupAddress}
+                  </p>
                 </div>
                 <button
-                  onClick={() => openGoogleMapsNavigation(order.pickupLat, order.pickupLng)}
+                  onClick={() =>
+                    openGoogleMapsNavigation(order.pickupLat, order.pickupLng)
+                  }
                   className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"
                   title="Navigate to pickup"
                 >
@@ -695,10 +724,14 @@ export default function DriverOrderDetailPage() {
                 <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400">Drop</p>
-                  <p className="text-sm text-gray-700 truncate">{order.dropAddress}</p>
+                  <p className="text-sm text-gray-700 truncate">
+                    {order.dropAddress}
+                  </p>
                 </div>
                 <button
-                  onClick={() => openGoogleMapsNavigation(order.dropLat, order.dropLng)}
+                  onClick={() =>
+                    openGoogleMapsNavigation(order.dropLat, order.dropLng)
+                  }
                   className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0"
                   title="Navigate to drop"
                 >
@@ -711,11 +744,15 @@ export default function DriverOrderDetailPage() {
             <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100 text-center text-xs">
               <div>
                 <p className="text-gray-400">Distance</p>
-                <p className="font-semibold text-sm">{order.distance?.toFixed(1)} km</p>
+                <p className="font-semibold text-sm">
+                  {order.distance?.toFixed(1)} km
+                </p>
               </div>
               <div>
                 <p className="text-gray-400">ETA</p>
-                <p className="font-semibold text-sm">{order.estimatedTime} min</p>
+                <p className="font-semibold text-sm">
+                  {order.estimatedTime} min
+                </p>
               </div>
               <div>
                 <p className="text-gray-400">Earning</p>
@@ -734,7 +771,9 @@ export default function DriverOrderDetailPage() {
                 {order.customer?.name?.[0]}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{order.customer?.name}</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {order.customer?.name}
+                </p>
                 <a
                   href={`tel:${order.customer?.phone}`}
                   className="text-xs text-primary-600 hover:underline"
@@ -753,13 +792,19 @@ export default function DriverOrderDetailPage() {
             {/* Payment method badge */}
             <div
               className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
-                isCash ? "bg-orange-50 text-orange-700" : "bg-blue-50 text-blue-700"
+                isCash
+                  ? "bg-orange-50 text-orange-700"
+                  : "bg-blue-50 text-blue-700"
               }`}
             >
               {isCash ? (
-                <><Banknote className="h-3.5 w-3.5" /> Cash on Delivery</>
+                <>
+                  <Banknote className="h-3.5 w-3.5" /> Cash on Delivery
+                </>
               ) : (
-                <><IndianRupee className="h-3.5 w-3.5" /> Online Payment</>
+                <>
+                  <IndianRupee className="h-3.5 w-3.5" /> Online Payment
+                </>
               )}
               {isCash && cashDone && (
                 <span className="ml-auto flex items-center gap-1 text-green-600">
@@ -771,7 +816,6 @@ export default function DriverOrderDetailPage() {
 
           {/* ── Action Buttons (real-world ordered flow) ─── */}
           <div className="space-y-3">
-
             {/* STEP 1: Accept order (pending) */}
             {order.status === "pending" && (
               <button
@@ -780,13 +824,18 @@ export default function DriverOrderDetailPage() {
                 className="btn-primary w-full py-3 text-base flex items-center justify-center gap-2"
               >
                 {statusLoading ? (
-                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Accepting...</>
-                ) : "✅ Accept Order"}
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{" "}
+                    Accepting...
+                  </>
+                ) : (
+                  "✅ Accept Order"
+                )}
               </button>
             )}
 
             {/* STEP 2: Verify pickup OTP (accepted, OTP not yet done) */}
-            {order.status === "accepted" && !pickupOtpVerified && (
+            {/* {order.status === "accepted" && !pickupOtpVerified && (
               <div className="card p-4 border-l-4 border-l-yellow-400 bg-yellow-50">
                 <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-yellow-500" />
@@ -794,6 +843,27 @@ export default function DriverOrderDetailPage() {
                 </p>
                 <p className="text-xs text-gray-500 mb-3">
                   You must verify OTP from the customer before picking up the package.
+                </p>
+                <button
+                  onClick={() => setShowOtpModal(true)}
+                  className="btn-secondary w-full text-sm py-2"
+                >
+                  Send & Verify OTP
+                </button>
+              </div>
+            )} */}
+
+            {/* STEP 2: Verify pickup OTP */}
+            {order.status === "accepted" && !pickupOtpVerified && (
+              <div className="card p-4 border-l-4 border-l-yellow-400 bg-yellow-50">
+                <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-yellow-500" />
+                  Verify Pickup OTP
+                </p>
+                <p className="text-xs text-gray-500 mb-3">
+                  {isPassenger
+                    ? "You must verify the secure trip code from the passenger before starting the ride."
+                    : "You must verify OTP from the customer before picking up the package."}
                 </p>
                 <button
                   onClick={() => setShowOtpModal(true)}
@@ -834,33 +904,38 @@ export default function DriverOrderDetailPage() {
             )}
 
             {/* STEP 5a: Delivery OTP (in_transit, OTP not yet verified) */}
-            {order.status === "in_transit" && !deliveryOtpVerified && (
-              <div className="card p-4 border-l-4 border-l-blue-400 bg-blue-50">
-                <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
-                  <KeyRound className="h-4 w-4 text-blue-500" />
-                  Verify Receiver OTP
-                </p>
-                <p className="text-xs text-gray-500 mb-3">
-                  Send OTP to the receiver and verify before completing delivery.
-                </p>
-                <button
-                  onClick={() => setShowDelOtpModal(true)}
-                  className="btn-secondary w-full text-sm py-2"
-                >
-                  Send & Verify Receiver OTP
-                </button>
-              </div>
-            )}
+            {order.status === "in_transit" &&
+              !isPassenger &&
+              !deliveryOtpVerified && (
+                <div className="card p-4 border-l-4 border-l-blue-400 bg-blue-50">
+                  <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 text-blue-500" />
+                    Verify Receiver OTP
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Send OTP to the receiver and verify before completing
+                    delivery.
+                  </p>
+                  <button
+                    onClick={() => setShowDelOtpModal(true)}
+                    className="btn-secondary w-full text-sm py-2"
+                  >
+                    Send & Verify Receiver OTP
+                  </button>
+                </div>
+              )}
 
             {/* Delivery OTP verified badge */}
-            {order.status === "in_transit" && deliveryOtpVerified && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg text-xs text-green-700 font-medium">
-                <CheckCircle className="h-3.5 w-3.5" /> Receiver OTP verified
-              </div>
-            )}
+            {order.status === "in_transit" &&
+              !isPassenger &&
+              deliveryOtpVerified && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg text-xs text-green-700 font-medium">
+                  <CheckCircle className="h-3.5 w-3.5" /> Receiver OTP verified
+                </div>
+              )}
 
             {/* STEP 5b: Upload proof & mark delivered (only after delivery OTP) */}
-            {order.status === "in_transit" && deliveryOtpVerified && (
+            {/* {order.status === "in_transit" && (isPassenger || deliveryOtpVerified) && (
               <button
                 onClick={() => setShowProofModal(true)}
                 className="w-full py-3 text-base bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
@@ -868,20 +943,58 @@ export default function DriverOrderDetailPage() {
                 <Camera className="h-4 w-4" />
                 Upload Proof & Mark Delivered
               </button>
-            )}
+            )} */}
+
+            {order.status === "in_transit" &&
+              (isPassenger || deliveryOtpVerified) && (
+                <div className="card p-4 border-l-4 border-l-green-400 bg-green-50">
+                  <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                    <Camera className="h-4 w-4 text-green-500" />
+                    {isPassenger
+                      ? "Complete Drop-off Proof"
+                      : "Complete Delivery Proof"}
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    {isPassenger
+                      ? "Please take a safety photo at the drop-off destination to finish the trip."
+                      : "Please take a package handover snapshot to finish this delivery."}
+                  </p>
+                  {/* <button
+                    onClick={() => setShowProofModal(true)}
+                    className="w-full text-sm py-2"
+                  >
+                    📸 Upload Proof & Complete
+                  </button> */}
+
+                  <button
+                    onClick={() => setShowProofModal(true)}
+                    className="w-full py-3 text-base bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Camera className="h-4 w-4" />
+                    Upload Proof & Mark Delivered
+                  </button>
+                </div>
+              )}
 
             {/* STEP 6: Cash collection (if COD, not yet collected) */}
-            {isCash && !cashDone && ["in_transit", "delivered"].includes(order.status) && (
-              <button
-                onClick={handleCashCollected}
-                disabled={cashLoading}
-                className="w-full py-3 text-base bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-              >
-                {cashLoading ? "Confirming..." : (
-                  <><Banknote className="h-4 w-4" /> Confirm Cash Collected ₹{order.totalAmount}</>
-                )}
-              </button>
-            )}
+            {isCash &&
+              !cashDone &&
+              ["in_transit", "delivered"].includes(order.status) && (
+                <button
+                  onClick={handleCashCollected}
+                  disabled={cashLoading}
+                  className="w-full py-3 text-base bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {cashLoading ? (
+                    "Confirming..."
+                  ) : (
+                    <>
+                      <Banknote className="h-4 w-4" /> Confirm Cash Collected ₹
+                      {order.totalAmount}
+                    </>
+                  )}
+                </button>
+              )}
 
             {/* Delivered success state */}
             {isDelivered && (
@@ -896,7 +1009,9 @@ export default function DriverOrderDetailPage() {
 
           {/* GPS status / warning */}
           {isActive && (
-            <div className={`card p-3 flex items-center gap-3 ${gpsError ? "border-orange-200 bg-orange-50" : ""}`}>
+            <div
+              className={`card p-3 flex items-center gap-3 ${gpsError ? "border-orange-200 bg-orange-50" : ""}`}
+            >
               {gpsError ? (
                 <>
                   <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
@@ -932,7 +1047,9 @@ export default function DriverOrderDetailPage() {
               </h3>
               <div className="h-48 overflow-y-auto mb-3 space-y-2 pr-1">
                 {messages.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center pt-6">No messages yet</p>
+                  <p className="text-xs text-gray-400 text-center pt-6">
+                    No messages yet
+                  </p>
                 ) : (
                   messages.map((m, i) => {
                     const isMe = m.senderId === user?.id;
@@ -949,9 +1066,12 @@ export default function DriverOrderDetailPage() {
                           }`}
                         >
                           {m.message}
-                          <p className={`text-[10px] mt-1 ${isMe ? "text-primary-200" : "text-gray-400"}`}>
+                          <p
+                            className={`text-[10px] mt-1 ${isMe ? "text-primary-200" : "text-gray-400"}`}
+                          >
                             {new Date(m.createdAt).toLocaleTimeString("en-IN", {
-                              hour: "2-digit", minute: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
                             })}
                           </p>
                         </div>
@@ -966,7 +1086,10 @@ export default function DriverOrderDetailPage() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMsg();
+                    }
                   }}
                   placeholder="Type a message..."
                   className="input-field flex-1"
@@ -988,38 +1111,58 @@ export default function DriverOrderDetailPage() {
           <div className="card overflow-hidden" style={{ height: "520px" }}>
             {/* Map header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-800">{mapLabel}</h3>
+              <h3 className="text-sm font-semibold text-gray-800">
+                {mapLabel}
+              </h3>
               <div className="flex gap-3 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Pickup
+                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />{" "}
+                  Pickup
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Drop
+                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />{" "}
+                  Drop
                 </span>
                 {location && isActive && (
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse inline-block" /> You
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse inline-block" />{" "}
+                    You
                   </span>
                 )}
               </div>
             </div>
 
             {/* Map canvas */}
-            <div ref={mapRef} style={{ height: "calc(100% - 45px)" }} className="w-full">
+            <div
+              ref={mapRef}
+              style={{ height: "calc(100% - 45px)" }}
+              className="w-full"
+            >
               {!process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY && (
                 <div className="h-full flex flex-col items-center justify-center bg-gray-50 gap-3">
                   <MapPin className="h-10 w-10 text-gray-300" />
-                  <p className="text-sm text-gray-400">Google Maps not configured</p>
+                  <p className="text-sm text-gray-400">
+                    Google Maps not configured
+                  </p>
                   <div className="text-center">
-                    <p className="text-xs text-gray-400 mb-2">Navigate manually:</p>
+                    <p className="text-xs text-gray-400 mb-2">
+                      Navigate manually:
+                    </p>
                     <button
-                      onClick={() => openGoogleMapsNavigation(order.pickupLat, order.pickupLng)}
+                      onClick={() =>
+                        openGoogleMapsNavigation(
+                          order.pickupLat,
+                          order.pickupLng,
+                        )
+                      }
                       className="btn-secondary text-xs py-1.5 px-3 mb-2 block mx-auto"
                     >
                       Open Pickup in Maps
                     </button>
                     <button
-                      onClick={() => openGoogleMapsNavigation(order.dropLat, order.dropLng)}
+                      onClick={() =>
+                        openGoogleMapsNavigation(order.dropLat, order.dropLng)
+                      }
                       className="btn-primary text-xs py-1.5 px-3 block mx-auto"
                     >
                       Open Drop in Maps
@@ -1033,13 +1176,17 @@ export default function DriverOrderDetailPage() {
           {/* Navigation quick-links */}
           <div className="flex gap-3">
             <button
-              onClick={() => openGoogleMapsNavigation(order.pickupLat, order.pickupLng)}
+              onClick={() =>
+                openGoogleMapsNavigation(order.pickupLat, order.pickupLng)
+              }
               className="btn-secondary flex-1 flex items-center justify-center gap-2 text-sm"
             >
               <Navigation className="h-4 w-4" /> Navigate to Pickup
             </button>
             <button
-              onClick={() => openGoogleMapsNavigation(order.dropLat, order.dropLng)}
+              onClick={() =>
+                openGoogleMapsNavigation(order.dropLat, order.dropLng)
+              }
               className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm"
             >
               <Navigation className="h-4 w-4" /> Navigate to Drop
@@ -1051,11 +1198,15 @@ export default function DriverOrderDetailPage() {
       {/* ── Pickup OTP Modal ──────────────────────────────── */}
       {showOtpModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowOtpModal(false)} />
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setShowOtpModal(false)}
+          />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-5 border-b">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-yellow-500" /> Pickup OTP Verification
+                <KeyRound className="h-4 w-4 text-yellow-500" /> Pickup OTP
+                Verification
               </h3>
               <p className="text-xs text-gray-500 mt-1">
                 Ask the customer for the OTP sent to their phone
@@ -1084,7 +1235,9 @@ export default function DriverOrderDetailPage() {
                       inputMode="numeric"
                       maxLength={6}
                       value={otpInput}
-                      onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))}
+                      onChange={(e) =>
+                        setOtpInput(e.target.value.replace(/\D/g, ""))
+                      }
                       placeholder="6-digit OTP"
                       className="input-field text-center text-lg tracking-widest font-mono"
                     />
@@ -1106,11 +1259,15 @@ export default function DriverOrderDetailPage() {
       {/* ── Delivery OTP Modal ────────────────────────────── */}
       {showDelOtpModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowDelOtpModal(false)} />
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setShowDelOtpModal(false)}
+          />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-5 border-b">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-blue-500" /> Delivery OTP Verification
+                <KeyRound className="h-4 w-4 text-blue-500" /> Delivery OTP
+                Verification
               </h3>
               <p className="text-xs text-gray-500 mt-1">
                 Ask the receiver for the OTP sent to their phone
@@ -1139,7 +1296,9 @@ export default function DriverOrderDetailPage() {
                       inputMode="numeric"
                       maxLength={6}
                       value={deliveryOtp}
-                      onChange={(e) => setDeliveryOtp(e.target.value.replace(/\D/g, ""))}
+                      onChange={(e) =>
+                        setDeliveryOtp(e.target.value.replace(/\D/g, ""))
+                      }
                       placeholder="6-digit OTP"
                       className="input-field text-center text-lg tracking-widest font-mono"
                     />
@@ -1149,7 +1308,9 @@ export default function DriverOrderDetailPage() {
                     disabled={otpLoading || deliveryOtp.length !== 6}
                     className="btn-primary w-full disabled:opacity-50"
                   >
-                    {otpLoading ? "Verifying..." : "Verify OTP & Complete Delivery"}
+                    {otpLoading
+                      ? "Verifying..."
+                      : "Verify OTP & Complete Delivery"}
                   </button>
                 </>
               )}
@@ -1161,11 +1322,15 @@ export default function DriverOrderDetailPage() {
       {/* ── Delivery Proof Modal ──────────────────────────── */}
       {showProofModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={closeProofModal} />
+          <div
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={closeProofModal}
+          />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
             <div className="p-5 border-b">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Camera className="h-4 w-4 text-primary-600" /> Upload Delivery Proof
+                <Camera className="h-4 w-4 text-primary-600" /> Upload Delivery
+                Proof
               </h3>
               <p className="text-xs text-gray-500 mt-1">
                 Take a photo of the delivered package at the drop location
@@ -1194,13 +1359,18 @@ export default function DriverOrderDetailPage() {
                 ) : (
                   <div className="h-40 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary-400 transition-colors">
                     <Camera className="h-8 w-8 text-gray-300" />
-                    <p className="text-sm text-gray-500">Tap to take / select photo</p>
+                    <p className="text-sm text-gray-500">
+                      Tap to take / select photo
+                    </p>
                   </div>
                 )}
               </label>
 
               <div className="flex gap-3">
-                <button onClick={closeProofModal} className="flex-1 btn-secondary">
+                <button
+                  onClick={closeProofModal}
+                  className="flex-1 btn-secondary"
+                >
                   Cancel
                 </button>
                 <button
@@ -1209,9 +1379,14 @@ export default function DriverOrderDetailPage() {
                   className="flex-1 btn-primary disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {proofLoading ? (
-                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Uploading...</>
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{" "}
+                      Uploading...
+                    </>
                   ) : (
-                    <><Upload className="h-4 w-4" /> Confirm Delivery</>
+                    <>
+                      <Upload className="h-4 w-4" /> Confirm Delivery
+                    </>
                   )}
                 </button>
               </div>

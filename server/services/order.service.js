@@ -33,22 +33,19 @@ const PLATFORM_FEE_PERCENT = 0.15;
 // Price Calculation
 // ─────────────────────────────────────────────
 
-const calculatePrice = (distanceKm, weightKg) => {
+const calculatePrice = (distanceKm, weightKg, orderType) => {
   const basePrice = 20;
-
   const distanceFee = distanceKm * 8;
-
-  const weightFee = weightKg * 5;
+  
+  // No weight calculation for passenger rides
+  const weightFee = orderType === "passenger" ? 0 : (Number(weightKg) || 0) * 5;
 
   const deliveryFee = distanceFee + weightFee;
-
   const totalAmount = basePrice + deliveryFee;
 
   return {
     basePrice,
-
     deliveryFee: parseFloat(deliveryFee.toFixed(2)),
-
     totalAmount: parseFloat(totalAmount.toFixed(2)),
   };
 };
@@ -131,7 +128,15 @@ const getRouteInfo = async (pickupLat, pickupLng, dropLat, dropLng) => {
 // Find Nearest Driver
 // ─────────────────────────────────────────────
 
-const findNearestDriver = async (pickupLat, pickupLng) => {
+const findNearestDriver = async (pickupLat, pickupLng,orderType) => {
+
+  let allowedVehicles = [];
+  if (orderType === 'passenger') {
+    allowedVehicles = ['car']; // Only cars allowed for passengers
+  } else {
+    allowedVehicles = ['bike', 'scooter', 'van', 'truck']; // Car is disabled for package delivery
+  }
+
   const drivers = await Driver.findAll({
     where: {
       isOnline: true,
@@ -139,6 +144,9 @@ const findNearestDriver = async (pickupLat, pickupLng) => {
       isAvailable: true,
 
       isVerified: true,
+      vehicleType: {
+        [Op.in]: allowedVehicles // Filters based on our business rule
+      },
 
       currentLat: {
         [Op.ne]: null,
@@ -187,6 +195,8 @@ const findNearestDriver = async (pickupLat, pickupLng) => {
 const createOrder = async (customerId, orderData) => {
   const transaction = await sequelize.transaction();
 
+  console.log("orderData",orderData)
+
   try {
     const {
       pickupLat,
@@ -195,14 +205,27 @@ const createOrder = async (customerId, orderData) => {
       dropLng,
       packageWeight,
       paymentMethod,
+      orderType
     } = orderData;
 
-    if (!orderData.receiverName) {
-      throw new ApiError(400, "Receiver name required");
+    
+
+    if (!orderType || !['passenger', 'delivery'].includes(orderType)) {
+      throw new ValidationError(400, "Valid orderType ('passenger' or 'delivery') is required");
     }
 
-    if (!orderData.receiverPhone) {
-      throw new ApiError(400, "Receiver phone required");
+
+    if (orderType === "delivery") {
+      if (!orderData.receiverName) {
+        throw new ValidationError(400, "Receiver name required for package delivery shipments");
+      }
+      if (!orderData.receiverPhone) {
+        throw new ValidationError(400, "Receiver phone configuration identifier required");
+      }
+    } else if (orderType === "passenger") {
+      if (!orderData.passengerCount || orderData.passengerCount < 1 || orderData.passengerCount > 4) {
+        throw new ValidationError(400, "Passenger count must be configured between 1 and 4 persons");
+      }
     }
 
     const routeInfo = await getRouteInfo(
@@ -212,15 +235,17 @@ const createOrder = async (customerId, orderData) => {
       dropLng,
     );
 
-    const pricing = calculatePrice(routeInfo.distanceKm, packageWeight);
+    const pricing = calculatePrice(routeInfo.distanceKm, packageWeight,orderType);
 
-    const nearestDriver = await findNearestDriver(pickupLat, pickupLng);
+    const nearestDriver = await findNearestDriver(pickupLat, pickupLng,orderType);
 
     const order = await Order.create(
       {
         customerId,
 
         ...orderData,
+
+        orderType,
 
         paymentMethod,
 
@@ -393,8 +418,9 @@ const getOrders = async ({ role, userId, page = 1, limit = 10, status, orderNumb
   return result;
 };
 
+
 // ─────────────────────────────────────────────
-// Accept Order
+// Accept Order (With Real-World Proximity Checking)
 // ─────────────────────────────────────────────
 
 const acceptOrder = async (orderId, driverUserId) => {
@@ -402,10 +428,7 @@ const acceptOrder = async (orderId, driverUserId) => {
 
   try {
     const driver = await Driver.findOne({
-      where: {
-        userId: driverUserId,
-      },
-
+      where: { userId: driverUserId },
       transaction,
     });
 
@@ -427,14 +450,17 @@ const acceptOrder = async (orderId, driverUserId) => {
       );
     }
     
-
     if (!driver.isAvailable) {
       throw new ValidationError("You are already on delivery");
     }
 
+    // Ensure the driver has a valid recorded location
+    if (driver.currentLat === null || driver.currentLng === null) {
+      throw new ValidationError("Could not fetch your current GPS location. Please turn on location services.");
+    }
+
     const order = await Order.findByPk(orderId, {
       transaction,
-      // lock: true,
       lock: transaction.LOCK.UPDATE,
     });
 
@@ -446,29 +472,63 @@ const acceptOrder = async (orderId, driverUserId) => {
       throw new ValidationError("Order already accepted");
     }
 
+
+    if (order.orderType === "passenger" && driver.vehicleType !== "car") {
+      throw new ValidationError(
+        `Passenger rides can only be accepted by Car drivers. Your current vehicle registered is a ${driver.vehicleType}.`
+      );
+    }
+
+
+    // ── 👇 REAL-WORLD CONDITION BUSINESS LOGIC START ──
+    
+    // 1. Calculate real-time distance from Driver to Pickup Location
+    const driverToPickupDistance = calculateDistance(
+      driver.currentLat,
+      driver.currentLng,
+      order.pickupLat,
+      order.pickupLng
+    );
+
+    // 2. Define business configurations for vehicle limits (in kilometers)
+    let maxAllowedPickupDistance = 5; // default fallback is 5 km
+
+    if (driver.vehicleType === 'bike' || driver.vehicleType === 'scooter') {
+      // Bikes handling short food or emergency medicine runs
+      if (order.packageCategory === 'food') {
+        maxAllowedPickupDistance = 3; // Strict 3km to keep food warm
+      } else {
+        maxAllowedPickupDistance = 5; 
+      }
+    } else if (driver.vehicleType === 'car' || driver.vehicleType === 'van') {
+      maxAllowedPickupDistance = 10;
+    } else if (driver.vehicleType === 'truck') {
+      // Large vehicle (Chota Hathi / Trucks) - can travel much farther because payout is higher
+      maxAllowedPickupDistance = 50; 
+    }
+
+    // 3. Enforce the calculated restriction
+    if (driverToPickupDistance > maxAllowedPickupDistance) {
+      throw new ValidationError(
+        `This order is too far away (${driverToPickupDistance.toFixed(1)} km). Your vehicle type (${driver.vehicleType}) is restricted to a maximum pickup range of ${maxAllowedPickupDistance} km to preserve fuel profitability.`
+      );
+    }
+
+    // ── 👆 REAL-WORLD CONDITION BUSINESS LOGIC END ──
+
     await order.update(
       {
         driverId: driver.id,
-
         status: "accepted",
         driverStatus: 'going_to_pickup',
-
         acceptedAt: new Date(),
       },
-
-      {
-        transaction,
-      },
+      { transaction }
     );
 
     await driver.update(
-      {
-        isAvailable: false,
-      },
-
-      {
-        transaction,
-      },
+      { isAvailable: false },
+      { transaction }
     );
 
     await transaction.commit();
@@ -477,216 +537,17 @@ const acceptOrder = async (orderId, driverUserId) => {
 
     await sendNotification(order.customerId, {
       title: "Driver Assigned",
-
       body: `Your order #${order.orderNumber} has been accepted.`,
-
       type: "order",
-
-      data: {
-        orderId,
-      },
+      data: { orderId },
     });
 
     return order;
   } catch (error) {
     await transaction.rollback();
-
     throw error;
   }
 };
-
-// const updateOrderStatus = async (
-//   orderId,
-//   driverUserId,
-//   status,
-//   extras = {},
-// ) => {
-//   const transaction = await sequelize.transaction();
-
-//   try {
-//     // Find Driver
-//     const driver = await Driver.findOne({
-//       where: {
-//         userId: driverUserId,
-//       },
-
-//       transaction,
-//     });
-
-//     if (!driver) {
-//       throw new NotFoundError("Driver profile");
-//     }
-
-//     // Find Order
-//     const order = await Order.findByPk(orderId, {
-//       transaction,
-
-//       // lock: true,
-//       lock: transaction.LOCK.UPDATE,
-//     });
-
-//     if (!order) {
-//       throw new NotFoundError("Order");
-//     }
-
-//     // Ownership Check
-//     if (String(order.driverId) !== String(driver.id)) {
-//       throw new AuthorizationError("Not your order");
-//     }
-
-//     // Status Transition Rules
-//     const VALID_TRANSITIONS = {
-//       accepted: ["picked_up", "cancelled"],
-
-//       picked_up: ["in_transit"],
-
-//       in_transit: ["delivered"],
-//     };
-
-//     // Invalid Transition
-//     if (!VALID_TRANSITIONS[order.status]?.includes(status)) {
-//       throw new ValidationError(
-//         `Cannot transition from ${order.status} to ${status}`,
-//       );
-//     }
-
-//     const updateData = {
-//       status,
-//     };
-
-//     // Picked Up
-//     if (status === "picked_up") {
-//       updateData.pickedUpAt = new Date();
-//     }
-
-//     // In Transit
-//     if (status === "in_transit") {
-//       updateData.inTransitAt = new Date();
-//     }
-
-//     // Delivered
-//     if (status === "delivered") {
-//       // Prevent Duplicate Earnings
-//       const existingEarning = await Earnings.findOne({
-//         where: {
-//           orderId: order.id,
-//         },
-
-//         transaction,
-//       });
-
-//       if (existingEarning) {
-//         throw new ValidationError("Earnings already processed");
-//       }
-
-//       updateData.deliveredAt = new Date();
-
-//       // Fee Calculation
-//       const platformFee = parseFloat(
-//         (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2),
-//       );
-
-//       const netEarning = parseFloat(
-//         (order.deliveryFee - platformFee).toFixed(2),
-//       );
-
-//       // Create Earnings
-//       await Earnings.create(
-//         {
-//           driverId: driver.id,
-
-//           orderId: order.id,
-
-//           amount: order.deliveryFee,
-
-//           platformFee,
-
-//           netEarning,
-//         },
-
-//         {
-//           transaction,
-//         },
-//       );
-
-//       // Update Driver Stats
-//       await driver.increment(
-//         {
-//           totalDeliveries: 1,
-
-//           totalEarnings: netEarning,
-//         },
-
-//         {
-//           transaction,
-//         },
-//       );
-
-//       // Check Active Orders
-//       const activeOrders = await Order.count({
-//         where: {
-//           driverId: driver.id,
-
-//           status: {
-//             [Op.in]: ["accepted", "picked_up", "in_transit"],
-//           },
-//         },
-
-//         transaction,
-//       });
-
-//       // Driver Available
-//       if (activeOrders <= 1) {
-//         await driver.update(
-//           {
-//             isAvailable: true,
-//           },
-
-//           {
-//             transaction,
-//           },
-//         );
-//       }
-//     }
-
-//     // Delivery Proof
-//     if (extras.deliveryProofImage) {
-//       updateData.deliveryProofImage = extras.deliveryProofImage;
-//     }
-
-//     // Update Order
-//     await order.update(updateData, {
-//       transaction,
-//     });
-
-//     // Commit
-//     await transaction.commit();
-
-//     // Clear Cache
-//     await cacheDelByPattern(`orders:customer:${order.customerId}*`);
-
-//     await cacheDelByPattern(`orders:driver:*`);
-
-//     // Notification
-//     await sendNotification(order.customerId, {
-//       title: `Order ${status.replace(/_/g, " ")}`,
-
-//       body: `Your order #${order.orderNumber} is now ${status.replace(/_/g, " ")}.`,
-
-//       type: "order",
-
-//       data: {
-//         orderId,
-//       },
-//     });
-
-//     return order;
-//   } catch (error) {
-//     await transaction.rollback();
-
-//     throw error;
-//   }
-// };
 
 const updateOrderStatus = async (
   orderId,
@@ -1018,6 +879,7 @@ const validateDriverOrder = async (
   return { order, driver };
 };
 
+
 const uploadDeliveryProof = async (orderId, driverUserId, file) => {
   const transaction = await sequelize.transaction();
 
@@ -1032,10 +894,9 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       throw new ValidationError("Order must be in transit to upload proof");
     }
 
-    if (!order.deliveryOtpVerified) {
-      throw new ValidationError(
-          "Receiver OTP verification required first"
-      );
+    // ── 👇 MODIFIED: ONLY REQUIRE DROP-OFF OTP FOR COURIER PACKAGES ──
+    if (order.orderType === "delivery" && !order.deliveryOtpVerified) {
+      throw new ValidationError("Receiver OTP verification required first");
     }
 
     const existingEarning = await Earnings.findOne({
@@ -1048,7 +909,10 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
     }
 
     if (!file) {
-      throw new ValidationError("Delivery proof image is required");
+      const errorMsg = order.orderType === "passenger" 
+        ? "Trip drop-off safety proof photo is required" 
+        : "Delivery proof image is required";
+      throw new ValidationError(errorMsg);
     }
 
     const proofUrl = file?.path || null;
@@ -1056,14 +920,13 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
     const platformFee = parseFloat(
       (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2),
     );
-
     const netEarning = parseFloat((order.deliveryFee - platformFee).toFixed(2));
 
     await order.update(
       {
         deliveryProofImage: proofUrl,
         status: "delivered",
-        driverStatus:"delivered",
+        driverStatus: "delivered",
         deliveredAt: new Date(),
       },
       { transaction },
@@ -1081,10 +944,7 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
     );
 
     await driver.increment(
-      {
-        totalDeliveries: 1,
-        totalEarnings: netEarning,
-      },
+      { totalDeliveries: 1, totalEarnings: netEarning },
       { transaction },
     );
 
@@ -1094,9 +954,13 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
 
     await cacheDelByPattern(`orders:*`);
 
+    // Send dynamic notification texts
+    const isPassenger = order.orderType === "passenger";
     await sendNotification(order.customerId, {
-      title: "📦 Order Delivered!",
-      body: `Your order #${order.orderNumber} has been delivered.`,
+      title: isPassenger ? "🚗 Trip Completed Successfully!" : "📦 Order Delivered!",
+      body: isPassenger 
+        ? `Your ride #${order.orderNumber} has arrived safely.`
+        : `Your order #${order.orderNumber} has been delivered.`,
       type: "order",
       data: { orderId: order.id },
     });
@@ -1219,6 +1083,11 @@ const generateDeliveryOtp = async (orderId, driverUserId) => {
     throw new ValidationError("Order must be in transit");
   }
 
+  // ── 👇 NEW CONDITION: Skip OTP generation if it's a passenger ──
+  if (order.orderType === "passenger") {
+    throw new ValidationError("Passenger rides do not require drop-off OTP verification.");
+  }
+
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
   await cacheSet(`delivery-otp:${order.id}`, otp, 600);
@@ -1265,33 +1134,6 @@ const verifyDeliveryOtp = async (orderId, driverUserId, otp) => {
   }
 };
 
-
-
-// const getOrderLiveLocationService = async (orderId) => {
-//   const order = await Order.findByPk(orderId);
-
-//   if (!order) {
-//     throw new Error('Order not found');
-//   }
-
-//   if (!order.driverId) {
-//     return null;
-//   }
-
-//   const driver = await Driver.findByPk(order.driverId);
-
-//   if (!driver) {
-//     return null;
-//   }
-
-//   return {
-//     lat: driver.currentLat,
-//     lng: driver.currentLng,
-//     isOnline: driver.isOnline,
-//     updatedAt: driver.lastLocationUpdate,
-//     driverStatus: order.driverStatus,
-//   };
-// };
 
 
 const getOrderLiveLocationService = async (orderId) => {

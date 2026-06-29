@@ -37,7 +37,7 @@ import carImage from '../../../../public/car.png';
 
 // ── Order timeline steps ───────────────────────────────────
 const TIMELINE = [
-  { key: "pending",    label: "Order Placed",       field: "createdAt"   },
+  { key: "pending",    label: "Booking Created",       field: "createdAt"   },
   { key: "accepted",   label: "Driver Assigned",    field: "acceptedAt"  },
   { key: "picked_up",  label: "Package Picked Up",  field: "pickedUpAt"  },
   { key: "in_transit", label: "In Transit",         field: null          },
@@ -166,6 +166,8 @@ export default function CustomerOrderDetailPage() {
 
   // Track previous order status to detect transitions
   const prevStatusRef = useRef(null);
+
+  const isPassenger = order?.orderType === "passenger";
 
   // ─────────────────────────────────────────────────────────
   // 1. Load order
@@ -601,7 +603,7 @@ useEffect(() => {
           {/* Order Timeline */}
           {!isCancelled && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-4">Order Progress</h3>
+              <h3 className="font-semibold text-gray-800 mb-4">{isPassenger ? "Booking Progress": "Order Progress" }</h3>
               <div className="space-y-3">
                 {TIMELINE.map((step, i) => {
                   const done    = i <= currentStep;
@@ -720,7 +722,7 @@ useEffect(() => {
                 <span>₹{order.basePrice}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Delivery fee</span>
+                <span className="text-gray-500">{isPassenger ? "Booking Charges" : "Delivery fee"}</span>
                 <span>₹{order.deliveryFee}</span>
               </div>
               <div className="flex justify-between font-semibold border-t border-gray-100 pt-2 mt-1">

@@ -112,15 +112,34 @@ deliveryOtpVerified: {
 },
 
 // Package Details
+// packageCategory: {
+//   type: DataTypes.ENUM(
+//     'documents',
+//     'electronics',
+//     'food',
+//     'clothes',
+//     'other'
+//   ),
+//   defaultValue: 'other',
+// },
+
 packageCategory: {
   type: DataTypes.ENUM(
-    'documents',
-    'electronics',
-    'food',
-    'clothes',
-    'other'
+    "documents",
+    "electronics",
+    "food",
+    "medicine",
+    "clothes",
+    "furniture",
+    "books",
+    "jewellery",
+    "sports",
+    "automobile_parts",
+    "passenger",
+    "other"
   ),
-  defaultValue: 'other',
+  allowNull: false,
+  defaultValue: "other",
 },
 
 packageValue: {
@@ -149,6 +168,17 @@ driverStatus: {
 
 driverLastLocationAt: {
   type: DataTypes.DATE,
+  defaultValue: null,
+},
+
+orderType: {
+  type: DataTypes.ENUM('passenger', 'delivery'),
+  allowNull: false,
+  defaultValue: 'delivery', // Defaulting to delivery based on your existing code
+},
+
+passengerCount: {
+  type: DataTypes.INTEGER,
   defaultValue: null,
 },
 

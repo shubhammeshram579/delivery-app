@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Info,
   CheckCircle,
+  Users,
 } from "lucide-react";
 import {
   createOrder,
@@ -33,77 +34,272 @@ import { useGoogleMaps } from "..//..//..//../hooks";
 // Package categories — real-world delivery app categories
 // ─────────────────────────────────────────────────────────
 const PACKAGE_CATEGORIES = [
-  { value: "documents",        label: "📄 Documents",          hint: "Letters, files, certificates" },
-  { value: "electronics",      label: "📱 Electronics",        hint: "Phones, laptops, gadgets" },
-  { value: "food",             label: "🍱 Food & Grocery",     hint: "Meals, groceries, beverages" },
-  { value: "medicine",         label: "💊 Medicine",           hint: "Medicines, medical equipment" },
-  { value: "clothes",          label: "👕 Clothes & Fashion",  hint: "Apparel, shoes, accessories" },
-  { value: "furniture",        label: "🛋️ Furniture",         hint: "Small furniture, home items" },
-  { value: "books",            label: "📚 Books & Stationery", hint: "Books, notebooks, art supplies" },
-  { value: "jewellery",        label: "💍 Jewellery",          hint: "Gold, silver, ornaments" },
-  { value: "sports",           label: "🏏 Sports Equipment",   hint: "Sports gear and accessories" },
-  { value: "automobile_parts", label: "🔧 Auto Parts",         hint: "Vehicle parts and accessories" },
-  { value: "other",            label: "📦 Other",              hint: "Anything not listed above" },
+  {
+    value: "documents",
+    label: "📄 Documents",
+    hint: "Letters, files, certificates",
+  },
+  {
+    value: "electronics",
+    label: "📱 Electronics",
+    hint: "Phones, laptops, gadgets",
+  },
+  {
+    value: "food",
+    label: "🍱 Food & Grocery",
+    hint: "Meals, groceries, beverages",
+  },
+  {
+    value: "medicine",
+    label: "💊 Medicine",
+    hint: "Medicines, medical equipment",
+  },
+  {
+    value: "clothes",
+    label: "👕 Clothes & Fashion",
+    hint: "Apparel, shoes, accessories",
+  },
+  {
+    value: "furniture",
+    label: "🛋️ Furniture",
+    hint: "Small furniture, home items",
+  },
+  {
+    value: "books",
+    label: "📚 Books & Stationery",
+    hint: "Books, notebooks, art supplies",
+  },
+  {
+    value: "jewellery",
+    label: "💍 Jewellery",
+    hint: "Gold, silver, ornaments",
+  },
+  {
+    value: "sports",
+    label: "🏏 Sports Equipment",
+    hint: "Sports gear and accessories",
+  },
+  {
+    value: "automobile_parts",
+    label: "🔧 Auto Parts",
+    hint: "Vehicle parts and accessories",
+  },
+  { value: "passenger", label: "🧍 Passenger", hint: "passenger Vehicle" },
+  { value: "other", label: "📦 Other", hint: "Anything not listed above" },
+];
+
+// {
+//   value: "passenger",
+//   label: "🧍 🚗 Passenger",
+//   hint: "Passenger"
+// },
+
+const VEHICLE_TYPES = [
+  {
+    value: "bike",
+    label: "🏍️ Bike",
+    maxWeight: 15,
+    baseMultiplier: 1.0,
+    hint: "Up to 15 kg — Quick delivery",
+  },
+  {
+    value: "scooter",
+    label: "🛵 Scooter",
+    maxWeight: 20,
+    baseMultiplier: 1.1,
+    hint: "Up to 20 kg — Better for fragile items",
+  },
+  {
+    value: "car",
+    label: "🚗 Car / SUV",
+    maxWeight: 80,
+    baseMultiplier: 2.0,
+    hint: "Up to 80 kg — Bulk orders or passengers",
+  },
+  {
+    value: "van",
+    label: "🚐 Van",
+    maxWeight: 300,
+    baseMultiplier: 3.5,
+    hint: "Up to 300 kg — Large items / appliances",
+  },
+  {
+    value: "truck",
+    label: "🚚 Truck",
+    maxWeight: 1000,
+    baseMultiplier: 5.0,
+    hint: "Up to 1000 kg — Heavy freight / commercial shift",
+  },
 ];
 
 // ─────────────────────────────────────────────────────────
 // Validation schema — every field properly validated
 // ─────────────────────────────────────────────────────────
-const schema = z.object({
-  // Addresses — must be picked from autocomplete (set by JS, not free-text)
-  pickupAddress: z.string().min(5, "Select a pickup address from suggestions"),
-  dropAddress:   z.string().min(5, "Select a drop address from suggestions"),
 
-  // Receiver info
-  receiverName: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(60, "Name too long")
-    .regex(/^[a-zA-Z\s.'-]+$/, "Name should only contain letters"),
+const schema = z
+  .object({
+    pickupAddress: z
+      .string()
+      .min(5, "Select a pickup address from suggestions"),
+    dropAddress: z.string().min(5, "Select a drop address from suggestions"),
 
-  receiverPhone: z
-    .string()
-    .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
+    // Move structural validations to superRefine so they don't block passenger bookings
+    receiverName: z.string().optional().or(z.literal("")),
+    receiverPhone: z.string().optional().or(z.literal("")),
+    receiverAlternatePhone: z.string().optional().or(z.literal("")),
 
-  receiverAlternatePhone: z
-    .string()
-    .regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile number")
-    .optional()
-    .or(z.literal("")),
+    packageCategory: z.enum(
+      [
+        "documents",
+        "electronics",
+        "food",
+        "medicine",
+        "clothes",
+        "furniture",
+        "books",
+        "jewellery",
+        "sports",
+        "automobile_parts",
+        "passenger",
+        "other",
+      ],
+      { errorMap: () => ({ message: "Select a package category" }) },
+    ),
 
-  // Package details
-  packageWeight: z.coerce
-    .number({ invalid_type_error: "Enter a valid weight" })
-    .min(0.1, "Minimum weight is 0.1 kg")
-    .max(100, "Maximum weight is 100 kg"),
+    packageWeight: z.coerce.number().optional().or(z.nan()),
+    packageValue: z.coerce.number().optional().or(z.nan()),
+    passengerCount: z.coerce.number().optional().or(z.nan()),
+    isFragile: z.boolean().optional(),
+    packageDescription: z.string().max(300, "Max 300 characters").optional(),
+    deliveryInstructions: z.string().max(300, "Max 300 characters").optional(),
 
-  packageCategory: z.enum(
-    ["documents","electronics","food","medicine","clothes","furniture","books","jewellery","sports","automobile_parts","other"],
-    { errorMap: () => ({ message: "Select a package category" }) }
-  ),
+    paymentMethod: z.enum(["cash", "online"], {
+      errorMap: () => ({ message: "Select a payment method" }),
+    }),
+    vehicleType: z.enum(["bike", "scooter", "car", "van", "truck"], {
+      errorMap: () => ({ message: "Select a vehicle type" }),
+    }),
+  })
+  .superRefine((data, ctx) => {
+    // ─── CASE 1: PASSENGER BOOKING ──────────────────────────────────
+    if (data.packageCategory === "passenger") {
+      if (
+        !data.passengerCount ||
+        isNaN(data.passengerCount) ||
+        data.passengerCount < 1 ||
+        data.passengerCount > 4
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Passenger count must be between 1 and 4",
+          path: ["passengerCount"],
+        });
+      }
+      if (data.vehicleType !== "car") {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Only cars can be selected for passenger category rides",
+          path: ["vehicleType"],
+        });
+      }
+    }
 
-  packageValue: z.coerce
-    .number({ invalid_type_error: "Enter a valid amount" })
-    .min(0, "Value cannot be negative")
-    .max(500000, "Value too high — contact us for high-value shipments"),
+    // ─── CASE 2: CARGO / DELIVERY BOOKING ────────────────────────────
+    else {
+      // 1. Validate Receiver Name
+      if (!data.receiverName || data.receiverName.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Name must be at least 2 characters",
+          path: ["receiverName"],
+        });
+      } else if (data.receiverName.length > 60) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Name too long",
+          path: ["receiverName"],
+        });
+      } else if (!/^[a-zA-Z\s.'-]+$/.test(data.receiverName)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Name should only contain letters",
+          path: ["receiverName"],
+        });
+      }
 
-  isFragile: z.boolean().optional(),
+      // 2. Validate Receiver Phone
+      if (!data.receiverPhone || !/^[6-9]\d{9}$/.test(data.receiverPhone)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter a valid 10-digit Indian mobile number",
+          path: ["receiverPhone"],
+        });
+      }
 
-  packageDescription: z
-    .string()
-    .max(300, "Max 300 characters")
-    .optional(),
+      // 3. Validate Receiver Alternate Phone (Optional structure)
+      if (
+        data.receiverAlternatePhone &&
+        data.receiverAlternatePhone !== "" &&
+        !/^[6-9]\d{9}$/.test(data.receiverAlternatePhone)
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter a valid 10-digit mobile number",
+          path: ["receiverAlternatePhone"],
+        });
+      }
 
-  // Delivery
-  deliveryInstructions: z
-    .string()
-    .max(300, "Max 300 characters")
-    .optional(),
+      // 4. Validate Weight
+      if (
+        data.packageWeight === undefined ||
+        isNaN(data.packageWeight) ||
+        data.packageWeight < 0.1
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Minimum weight is 0.1 kg",
+          path: ["packageWeight"],
+        });
+      } else if (data.packageWeight > 1000) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Maximum cargo weight limit is 1000 kg",
+          path: ["packageWeight"],
+        });
+      }
 
-  paymentMethod: z.enum(["cash", "online"], {
-    errorMap: () => ({ message: "Select a payment method" }),
-  }),
-});
+      // 5. Validate Declared Value
+      if (
+        data.packageValue === undefined ||
+        isNaN(data.packageValue) ||
+        data.packageValue < 0
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Value cannot be negative",
+          path: ["packageValue"],
+        });
+      } else if (data.packageValue > 500000) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Value too high — contact us for high-value shipments",
+          path: ["packageValue"],
+        });
+      }
+
+      // 6. Check Capacity limits
+      const selectedVehicle = VEHICLE_TYPES.find(
+        (v) => v.value === data.vehicleType,
+      );
+      if (selectedVehicle && data.packageWeight > selectedVehicle.maxWeight) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Weight exceeds your selected ${selectedVehicle.label}'s capacity (${selectedVehicle.maxWeight}kg)`,
+          path: ["vehicleType"],
+        });
+      }
+    }
+  });
 
 // ─────────────────────────────────────────────────────────
 // Field wrapper — consistent error + label layout
@@ -116,7 +312,9 @@ function Field({ label, required, error, children, hint }) {
           {label}
           {required && <span className="text-red-500 ml-0.5">*</span>}
           {hint && (
-            <span className="ml-1 text-xs text-gray-400 font-normal">({hint})</span>
+            <span className="ml-1 text-xs text-gray-400 font-normal">
+              ({hint})
+            </span>
           )}
         </label>
       )}
@@ -133,21 +331,21 @@ function Field({ label, required, error, children, hint }) {
 export default function NewOrderPage() {
   useRequireAuth("customer");
   const dispatch = useDispatch();
-  const router   = useRouter();
-  const loading  = useSelector(selectOrdersLoading);
+  const router = useRouter();
+  const loading = useSelector(selectOrdersLoading);
 
   const mapRef = useRef(null);
   const { map, mapLoaded, drawRoute } = useGoogleMaps(mapRef);
 
   const [pickupCoords, setPickupCoords] = useState(null);
-  const [dropCoords,   setDropCoords]   = useState(null);
+  const [dropCoords, setDropCoords] = useState(null);
   const [priceEstimate, setPriceEstimate] = useState(null);
-  const [serverError,   setServerError]   = useState(null);
-  const [orderSuccess,  setOrderSuccess]  = useState(false);
+  const [serverError, setServerError] = useState(null);
+  const [orderSuccess, setOrderSuccess] = useState(false);
 
   // Keep coords in refs so autocomplete listeners don't go stale
   const pickupCoordsRef = useRef(null);
-  const dropCoordsRef   = useRef(null);
+  const dropCoordsRef = useRef(null);
 
   const {
     register,
@@ -158,11 +356,12 @@ export default function NewOrderPage() {
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
-      packageWeight:   1,
-      packageValue:    0,
-      paymentMethod:   "cash",
+      packageWeight: 1,
+      packageValue: 0,
+      paymentMethod: "cash",
       packageCategory: "documents",
-      isFragile:       false,
+      vehicleType: "bike", // Safe fallback default
+      isFragile: false,
     },
   });
 
@@ -189,7 +388,9 @@ export default function NewOrderPage() {
       ac.addListener("place_changed", () => {
         const place = ac.getPlace();
         if (!place.geometry) {
-          setServerError("Could not find that location. Please pick from the dropdown.");
+          setServerError(
+            "Could not find that location. Please pick from the dropdown.",
+          );
           return;
         }
         const lat = place.geometry.location.lat();
@@ -199,34 +400,77 @@ export default function NewOrderPage() {
 
         // Update state for price calculation
         if (fieldName === "pickupAddress") setPickupCoords({ lat, lng });
-        if (fieldName === "dropAddress")   setDropCoords({ lat, lng });
+        if (fieldName === "dropAddress") setDropCoords({ lat, lng });
 
         // Draw route if both coords are now available
         const pickup = pickupCoordsRef.current;
-        const drop   = dropCoordsRef.current;
+        const drop = dropCoordsRef.current;
         if (pickup && drop) drawRoute(pickup, drop);
       });
     };
 
     setupAutocomplete("pickupInput", pickupCoordsRef, "pickupAddress");
-    setupAutocomplete("dropInput",   dropCoordsRef,   "dropAddress");
+    setupAutocomplete("dropInput", dropCoordsRef, "dropAddress");
   }, [mapLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─────────────────────────────────────────────────────
   // Price estimate — recalculate on coord or weight change
   // ─────────────────────────────────────────────────────
-  const weight   = watch("packageWeight");
+  const weight = watch("packageWeight");
   const category = watch("packageCategory");
   const isFragile = watch("isFragile");
+  const vehicleType = watch("vehicleType"); // Watch the vehicle choice
+
+  // useEffect(() => {
+  //   if (!pickupCoords || !dropCoords || !weight || weight <= 0) {
+  //     setPriceEstimate(null);
+  //     return;
+  //   }
+
+  //   // Haversine distance
+  //   const R    = 6371;
+  //   const dLat = ((dropCoords.lat - pickupCoords.lat) * Math.PI) / 180;
+  //   const dLng = ((dropCoords.lng - pickupCoords.lng) * Math.PI) / 180;
+  //   const a =
+  //     Math.sin(dLat / 2) ** 2 +
+  //     Math.cos((pickupCoords.lat * Math.PI) / 180) *
+  //       Math.cos((dropCoords.lat * Math.PI) / 180) *
+  //       Math.sin(dLng / 2) ** 2;
+  //   const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  //   // Same formula as original, plus fragile surcharge
+  //   const base       = 20;
+  //   const delivery   = dist * 8 + Number(weight) * 5;
+  //   const fragile    = isFragile ? 15 : 0;
+  //   const total      = base + delivery + fragile;
+
+  //   // ETA: base 3 min/km, minimum 10 min
+  //   const eta = Math.max(10, Math.ceil(dist * 3));
+
+  //   setPriceEstimate({
+  //     distance: dist.toFixed(1),
+  //     eta,
+  //     base,
+  //     delivery:     delivery.toFixed(0),
+  //     fragileFee:   fragile,
+  //     total:        total.toFixed(0),
+  //   });
+  // }, [pickupCoords, dropCoords, weight, isFragile]);
 
   useEffect(() => {
-    if (!pickupCoords || !dropCoords || !weight || weight <= 0) {
+    if (
+      !pickupCoords ||
+      !dropCoords ||
+      !weight ||
+      weight <= 0 ||
+      !vehicleType
+    ) {
       setPriceEstimate(null);
       return;
     }
 
-    // Haversine distance
-    const R    = 6371;
+    // Haversine calculation lines stay the same...
+    const R = 6371;
     const dLat = ((dropCoords.lat - pickupCoords.lat) * Math.PI) / 180;
     const dLng = ((dropCoords.lng - pickupCoords.lng) * Math.PI) / 180;
     const a =
@@ -236,24 +480,50 @@ export default function NewOrderPage() {
         Math.sin(dLng / 2) ** 2;
     const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    // Same formula as original, plus fragile surcharge
-    const base       = 20;
-    const delivery   = dist * 8 + Number(weight) * 5;
-    const fragile    = isFragile ? 15 : 0;
-    const total      = base + delivery + fragile;
+    // Get multiplier for selected vehicle
+    const vehicleConfig =
+      VEHICLE_TYPES.find((v) => v.value === vehicleType) || VEHICLE_TYPES[0];
 
-    // ETA: base 3 min/km, minimum 10 min
-    const eta = Math.max(10, Math.ceil(dist * 3));
+    const base = 20 * vehicleConfig.baseMultiplier;
+    const delivery =
+      (dist * 8 + Number(weight) * 5) * vehicleConfig.baseMultiplier;
+    const fragile = isFragile ? 15 : 0;
+    const total = base + delivery + fragile;
+    const eta = Math.max(10, Math.ceil(dist * 3)); // (In real world, trucks move slower; you could adjust this multiplier too)
 
     setPriceEstimate({
       distance: dist.toFixed(1),
       eta,
-      base,
-      delivery:     delivery.toFixed(0),
-      fragileFee:   fragile,
-      total:        total.toFixed(0),
+      base: base.toFixed(0),
+      delivery: delivery.toFixed(0),
+      fragileFee: fragile,
+      total: total.toFixed(0),
     });
-  }, [pickupCoords, dropCoords, weight, isFragile]);
+  }, [pickupCoords, dropCoords, weight, isFragile, vehicleType]); // Added
+
+
+
+  // Sync Package Category changes with Form Values and Fields
+  useEffect(() => {
+    if (category === "passenger") {
+      setValue("vehicleType", "car");
+      // Clear delivery fields so they don't pass stale data
+      setValue("weight", undefined);
+      setValue("declaredValue", undefined);
+    } else {
+      // Clear passenger count value if moving back to package delivery
+      setValue("passengerCount", undefined);
+
+      if (category === "furniture") {
+        setValue("vehicleType", "truck");
+      } else if (
+        watch("vehicleType") === "car" ||
+        watch("vehicleType") === "truck"
+      ) {
+        setValue("vehicleType", "bike"); // Reset to standard safe delivery item choice
+      }
+    }
+  }, [category, setValue, watch]);
 
   // ─────────────────────────────────────────────────────
   // Submit
@@ -263,21 +533,28 @@ export default function NewOrderPage() {
   // ─────────────────────────────────────────────────────
   const onSubmit = async (data) => {
     if (!pickupCoords || !dropCoords) {
-      setServerError("Please select valid addresses from the dropdown suggestions.");
+      setServerError(
+        "Please select valid addresses from the dropdown suggestions.",
+      );
       return;
     }
 
     setServerError(null);
 
+    // Compute the exact orderType value requested by your API
+    const orderType =
+      data.packageCategory === "passenger" ? "passenger" : "delivery";
+
     try {
       const result = await dispatch(
         createOrder({
           ...data,
+          orderType, // Send orderType directly inside payload data
           pickupLat: pickupCoords.lat,
           pickupLng: pickupCoords.lng,
-          dropLat:   dropCoords.lat,
-          dropLng:   dropCoords.lng,
-        })
+          dropLat: dropCoords.lat,
+          dropLng: dropCoords.lng,
+        }),
       ).unwrap();
 
       // Navigate to the new order's detail page
@@ -289,7 +566,9 @@ export default function NewOrderPage() {
         router.push("/customer/orders");
       }
     } catch (error) {
-      setServerError(error?.message || "Failed to place order. Please try again.");
+      setServerError(
+        error?.message || "Failed to place order. Please try again.",
+      );
     }
   };
 
@@ -300,13 +579,16 @@ export default function NewOrderPage() {
     <DashboardLayout role="customer" title="Place New Order">
       <div className="max-w-4xl mx-auto px-0 sm:px-0">
         <div className="grid lg:grid-cols-5 gap-4 lg:gap-6">
-
           {/* ── Form column ───────────────────────────── */}
           <div className="lg:col-span-3 space-y-4 order-2 lg:order-1">
             <ErrorAlert message={serverError} />
 
-            <form id="new-order-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4 pb-2 sm:pb-0" noValidate>
-
+            <form
+              id="new-order-form"
+              onSubmit={handleSubmit(onSubmit)}
+              className="space-y-4 pb-2 sm:pb-0"
+              noValidate
+            >
               {/* ── Section 1: Pickup ────────────────── */}
               <div className="card p-4 sm:p-5">
                 <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
@@ -355,81 +637,116 @@ export default function NewOrderPage() {
                 )}
               </div>
 
-              {/* ── Section 3: Receiver ──────────────── */}
-              <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-400" /> Receiver Details
-                </h3>
-                <div className="space-y-4">
-                  <Field label="Full Name" required error={errors.receiverName?.message}>
-                    <input
-                      placeholder="e.g. Rahul Sharma"
-                      className={`input-field ${errors.receiverName ? "border-red-400" : ""}`}
-                      {...register("receiverName")}
-                    />
-                  </Field>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label="Mobile Number" required error={errors.receiverPhone?.message}>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">+91</span>
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          maxLength={10}
-                          placeholder="9876543210"
-                          className={`input-field pl-10 ${errors.receiverPhone ? "border-red-400" : ""}`}
-                          {...register("receiverPhone")}
-                          onChange={(e) => {
-                            // Allow only digits
-                            e.target.value = e.target.value.replace(/\D/g, "");
-                            register("receiverPhone").onChange(e);
-                          }}
-                        />
-                      </div>
-                    </Field>
-
+              {/* ── Section 3: Receiver (Hidden if Passenger Booking) ────────── */}
+              {category !== "passenger" && (
+                <div className="card p-4 sm:p-5">
+                  <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-400" /> Receiver Details
+                  </h3>
+                  <div className="space-y-4">
                     <Field
-                      label="Alternate Number"
-                      hint="optional"
-                      error={errors.receiverAlternatePhone?.message}
+                      label="Full Name"
+                      required
+                      error={errors.receiverName?.message}
                     >
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">+91</span>
-                        <input
-                          type="tel"
-                          inputMode="numeric"
-                          maxLength={10}
-                          placeholder="9876543210"
-                          className={`input-field pl-10 ${errors.receiverAlternatePhone ? "border-red-400" : ""}`}
-                          {...register("receiverAlternatePhone")}
-                          onChange={(e) => {
-                            e.target.value = e.target.value.replace(/\D/g, "");
-                            register("receiverAlternatePhone").onChange(e);
-                          }}
-                        />
-                      </div>
+                      <input
+                        placeholder="e.g. Rahul Sharma"
+                        className={`input-field ${errors.receiverName ? "border-red-400" : ""}`}
+                        {...register("receiverName")}
+                      />
                     </Field>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Field
+                        label="Mobile Number"
+                        required
+                        error={errors.receiverPhone?.message}
+                      >
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">
+                            +91
+                          </span>
+                          <input
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength={10}
+                            placeholder="9876543210"
+                            className={`input-field pl-10 ${errors.receiverPhone ? "border-red-400" : ""}`}
+                            {...register("receiverPhone")}
+                            onChange={(e) => {
+                              // Allow only digits
+                              e.target.value = e.target.value.replace(
+                                /\D/g,
+                                "",
+                              );
+                              register("receiverPhone").onChange(e);
+                            }}
+                          />
+                        </div>
+                      </Field>
+
+                      <Field
+                        label="Alternate Number"
+                        hint="optional"
+                        error={errors.receiverAlternatePhone?.message}
+                      >
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 select-none">
+                            +91
+                          </span>
+                          <input
+                            type="tel"
+                            inputMode="numeric"
+                            maxLength={10}
+                            placeholder="9876543210"
+                            className={`input-field pl-10 ${errors.receiverAlternatePhone ? "border-red-400" : ""}`}
+                            {...register("receiverAlternatePhone")}
+                            onChange={(e) => {
+                              e.target.value = e.target.value.replace(
+                                /\D/g,
+                                "",
+                              );
+                              register("receiverAlternatePhone").onChange(e);
+                            }}
+                          />
+                        </div>
+                      </Field>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* ── Section 4: Package Details ────────── */}
               <div className="card p-4 sm:p-5">
                 <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <Package className="h-4 w-4 text-gray-400" /> Package Details
+                  {category === "passenger" ? (
+                    <>
+                      <Users className="h-4 w-4 text-gray-400" /> Passenger
+                      Details
+                    </>
+                  ) : (
+                    <>
+                      <Package className="h-4 w-4 text-gray-400" /> Package
+                      Details
+                    </>
+                  )}
                 </h3>
                 <div className="space-y-4">
-
                   {/* Category */}
-                  <Field label="Category" required error={errors.packageCategory?.message}>
+                  <Field
+                    label="Category"
+                    required
+                    error={errors.packageCategory?.message}
+                  >
                     <div className="relative">
                       <select
                         className={`input-field appearance-none pr-8 ${errors.packageCategory ? "border-red-400" : ""}`}
                         {...register("packageCategory")}
                       >
                         {PACKAGE_CATEGORIES.map((c) => (
-                          <option key={c.value} value={c.value}>{c.label}</option>
+                          <option key={c.value} value={c.value}>
+                            {c.label}
+                          </option>
                         ))}
                       </select>
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -437,73 +754,126 @@ export default function NewOrderPage() {
                     {/* Category hint */}
                     {category && (
                       <p className="mt-1 text-xs text-gray-400">
-                        {PACKAGE_CATEGORIES.find(c => c.value === category)?.hint}
+                        {
+                          PACKAGE_CATEGORIES.find((c) => c.value === category)
+                            ?.hint
+                        }
                       </p>
                     )}
                   </Field>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Weight */}
-                    <Field label="Weight" required error={errors.packageWeight?.message}>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0.1"
-                          max="100"
-                          placeholder="1.0"
-                          className={`input-field pr-10 ${errors.packageWeight ? "border-red-400" : ""}`}
-                          {...register("packageWeight")}
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">kg</span>
-                      </div>
-                    </Field>
-
-                    {/* Declared value */}
+                  {category === "passenger" ? (
+                    /* ── PASSENGER VIEW: Show Number of Persons Dropdown ── */
                     <Field
-                      label="Declared Value"
+                      label="Number of Passengers"
                       required
-                      hint="for insurance"
-                      error={errors.packageValue?.message}
+                      error={errors.passengerCount?.message}
                     >
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="0"
-                          className={`input-field pl-7 ${errors.packageValue ? "border-red-400" : ""}`}
-                          {...register("packageValue")}
-                        />
+                        <select
+                          className={`input-field appearance-none pr-8 ${errors.passengerCount ? "border-red-400" : ""}`}
+                          {...register("passengerCount", {
+                            valueAsNumber: true,
+                          })}
+                        >
+                          <option value="1">1 Person</option>
+                          <option value="2">2 Persons</option>
+                          <option value="3">3 Persons</option>
+                          <option value="4">4 Persons (Max)</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                       </div>
                     </Field>
-                  </div>
+                  ) : (
+                    /* ── CARGO / DELIVERY VIEW: Show Weight, Value & Fragile Toggle ── */
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Weight */}
+                        <Field
+                          label="Weight"
+                          required
+                          error={errors.packageWeight?.message}
+                        >
+                          <div className="relative">
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0.1"
+                              max="100"
+                              placeholder="1.0"
+                              className={`input-field pr-10 ${errors.packageWeight ? "border-red-400" : ""}`}
+                              {...register("packageWeight", {
+                                valueAsNumber: true,
+                              })}
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                              kg
+                            </span>
+                          </div>
+                        </Field>
 
-                  {/* Fragile toggle */}
-                  <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 w-4 h-4 accent-primary-600"
-                      {...register("isFragile")}
-                    />
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Fragile Package</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Handle with care · ₹15 surcharge · driver will be notified
-                      </p>
-                    </div>
-                  </label>
+                        {/* Declared value */}
+                        <Field
+                          label="Declared Value"
+                          required
+                          hint="for insurance"
+                          error={errors.packageValue?.message}
+                        >
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                              ₹
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              className={`input-field pl-7 ${errors.packageValue ? "border-red-400" : ""}`}
+                              {...register("packageValue", {
+                                valueAsNumber: true,
+                              })}
+                            />
+                          </div>
+                        </Field>
+                      </div>
 
-                  {/* Description */}
+                      {/* Fragile toggle */}
+                      <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 w-4 h-4 accent-primary-600"
+                          {...register("isFragile")}
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-gray-800">
+                            Fragile Package
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Handle with care · ₹15 surcharge · driver will be
+                            notified
+                          </p>
+                        </div>
+                      </label>
+                    </>
+                  )}
+
+                  {/* Description (Dynamic Placeholders & Labels) */}
                   <Field
-                    label="Package Description"
+                    label={
+                      category === "passenger"
+                        ? "Ride Notes / Instructions"
+                        : "Package Description"
+                    }
                     hint="optional"
                     error={errors.packageDescription?.message}
                   >
                     <textarea
                       rows={2}
                       maxLength={300}
-                      placeholder="e.g. 2 mobile phones in original box, 3 kg approx"
+                      placeholder={
+                        category === "passenger"
+                          ? "e.g. Please carry one extra luggage bag, or wait near the gate corner"
+                          : "e.g. 2 mobile phones in original box, 3 kg approx"
+                      }
                       className={`input-field resize-none ${errors.packageDescription ? "border-red-400" : ""}`}
                       {...register("packageDescription")}
                     />
@@ -514,11 +884,90 @@ export default function NewOrderPage() {
                 </div>
               </div>
 
+              {/* ── Section: Choose Vehicle Type ────────── */}
+              <div className="card p-4 sm:p-5">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Package className="h-4 w-4 text-gray-400" /> Vehicle Category
+                </h3>
+
+                <Field
+                  label="Select Vehicle"
+                  required
+                  error={errors.vehicleType?.message}
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {VEHICLE_TYPES.map((v) => {
+                      const isTooHeavy = weight > v.maxWeight;
+                      const selected = watch("vehicleType") === v.value;
+
+                      // Apply custom business rules for enabling/disabling choices:
+                      let isDisabled = isTooHeavy;
+
+                      if (category === "furniture") {
+                        // Rule 1: If furniture, ONLY truck is allowed
+                        if (v.value !== "truck") isDisabled = true;
+                      } else if (category === "passenger") {
+                        // Rule 2: If passenger order: ONLY car can be chosen
+                        if (v.value !== "car") isDisabled = true;
+                      } else {
+                        // Rule 3: If normal cargo/delivery order: car is strictly disabled
+                        if (v.value === "car") isDisabled = true;
+                      }
+
+                      return (
+                        <label
+                          key={v.value}
+                          className={`flex flex-col p-3 rounded-xl border-2 transition-all ${
+                            isDisabled
+                              ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                              : selected
+                                ? "border-primary-500 bg-primary-50 cursor-pointer"
+                                : "border-gray-200 hover:border-gray-300 cursor-pointer"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            value={v.value}
+                            disabled={isDisabled}
+                            className="sr-only"
+                            {...register("vehicleType")}
+                          />
+                          <div className="flex justify-between items-center">
+                            <span
+                              className={`text-sm font-medium ${selected ? "text-primary-700" : "text-gray-800"}`}
+                            >
+                              {v.label}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 font-medium text-gray-500">
+                              {v.value === "car" && category === "passenger"
+                                ? "Max 4 Persons"
+                                : `Max ${v.maxWeight}kg`}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-400 mt-1">
+                            {category === "furniture" && v.value !== "truck"
+                              ? "Requires a truck for large furniture items"
+                              : v.value === "car" && category !== "passenger"
+                                ? "Disabled for package delivery orders"
+                                : category === "passenger" && v.value !== "car"
+                                  ? "Only cars can carry passengers"
+                                  : v.hint}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </Field>
+              </div>
+
               {/* ── Section 5: Delivery Instructions ─── */}
               <div className="card p-4 sm:p-5">
                 <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-gray-400" /> Delivery Instructions
-                  <span className="text-xs font-normal text-gray-400">(optional)</span>
+                  <FileText className="h-4 w-4 text-gray-400" /> Delivery
+                  Instructions
+                  <span className="text-xs font-normal text-gray-400">
+                    (optional)
+                  </span>
                 </h3>
                 <Field error={errors.deliveryInstructions?.message}>
                   <textarea
@@ -537,15 +986,26 @@ export default function NewOrderPage() {
               {/* ── Section 6: Payment Method ─────────── */}
               <div className="card p-4 sm:p-5">
                 <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <IndianRupee className="h-4 w-4 text-gray-400" /> Payment Method
+                  <IndianRupee className="h-4 w-4 text-gray-400" /> Payment
+                  Method
                 </h3>
                 {errors.paymentMethod && (
-                  <p className="text-xs text-red-500 mb-3">{errors.paymentMethod.message}</p>
+                  <p className="text-xs text-red-500 mb-3">
+                    {errors.paymentMethod.message}
+                  </p>
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { value: "cash",   label: "💵 Cash on Delivery", desc: "Pay driver on arrival" },
-                    { value: "online", label: "💳 Pay Online",        desc: "UPI · Cards · Wallets" },
+                    {
+                      value: "cash",
+                      label: "💵 Cash on Delivery",
+                      desc: "Pay driver on arrival",
+                    },
+                    {
+                      value: "online",
+                      label: "💳 Pay Online",
+                      desc: "UPI · Cards · Wallets",
+                    },
                   ].map((opt) => {
                     const selected = watch("paymentMethod") === opt.value;
                     return (
@@ -563,10 +1023,14 @@ export default function NewOrderPage() {
                           className="sr-only"
                           {...register("paymentMethod")}
                         />
-                        <span className={`text-sm font-medium leading-tight ${selected ? "text-primary-700" : "text-gray-800"}`}>
+                        <span
+                          className={`text-sm font-medium leading-tight ${selected ? "text-primary-700" : "text-gray-800"}`}
+                        >
                           {opt.label}
                         </span>
-                        <span className="text-xs text-gray-400">{opt.desc}</span>
+                        <span className="text-xs text-gray-400">
+                          {opt.desc}
+                        </span>
                       </label>
                     );
                   })}
@@ -580,11 +1044,17 @@ export default function NewOrderPage() {
                 className="hidden sm:flex btn-primary w-full py-3.5 items-center justify-center gap-2 text-base disabled:opacity-60"
               >
                 {loading ? (
-                  <><LoadingSpinner size="sm" /> Placing Order…</>
+                  <>
+                    <LoadingSpinner size="sm" /> Placing Order…
+                  </>
                 ) : orderSuccess ? (
-                  <><CheckCircle className="h-5 w-5" /> Order Placed!</>
+                  <>
+                    <CheckCircle className="h-5 w-5" /> Order Placed!
+                  </>
                 ) : (
-                  <><ArrowRight className="h-5 w-5" /> Place Order</>
+                  <>
+                    <ArrowRight className="h-5 w-5" /> Place Order
+                  </>
                 )}
               </button>
 
@@ -600,9 +1070,11 @@ export default function NewOrderPage() {
 
           {/* ── Right column — Map + Estimate ─────────── */}
           <div className="lg:col-span-2 space-y-4 order-1 lg:order-2 lg:sticky lg:top-4 self-start">
-
             {/* Map — taller on mobile so route is visible */}
-            <div className="card overflow-hidden relative" style={{ height: "220px" }}>
+            <div
+              className="card overflow-hidden relative"
+              style={{ height: "220px" }}
+            >
               <div ref={mapRef} className="w-full h-full" />
               {!mapLoaded && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-xl">
@@ -612,7 +1084,9 @@ export default function NewOrderPage() {
               {mapLoaded && !pickupCoords && !dropCoords && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/90 rounded-xl gap-2 pointer-events-none">
                   <MapPin className="h-8 w-8 text-gray-300" />
-                  <p className="text-sm text-gray-400">Enter addresses to see route</p>
+                  <p className="text-sm text-gray-400">
+                    Enter addresses to see route
+                  </p>
                 </div>
               )}
             </div>
@@ -620,13 +1094,17 @@ export default function NewOrderPage() {
             {/* Price estimate */}
             {priceEstimate ? (
               <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3">Price Estimate</h3>
+                <h3 className="font-semibold text-gray-800 mb-3">
+                  Price Estimate
+                </h3>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500 flex items-center gap-1.5">
                       <Ruler className="h-3.5 w-3.5" /> Distance
                     </span>
-                    <span className="font-medium">{priceEstimate.distance} km</span>
+                    <span className="font-medium">
+                      {priceEstimate.distance} km
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500 flex items-center gap-1.5">
@@ -660,13 +1138,11 @@ export default function NewOrderPage() {
                   * Final price confirmed after driver accepts
                 </p>
               </div>
-            ) : (
-              pickupCoords && !dropCoords ? (
-                <div className="card p-4 text-center text-sm text-gray-400">
-                  Enter drop address to see price estimate
-                </div>
-              ) : null
-            )}
+            ) : pickupCoords && !dropCoords ? (
+              <div className="card p-4 text-center text-sm text-gray-400">
+                Enter drop address to see price estimate
+              </div>
+            ) : null}
 
             {/* Package tips — shown based on selected category */}
             {category === "electronics" && (
@@ -675,7 +1151,8 @@ export default function NewOrderPage() {
                   <Info className="h-3.5 w-3.5" /> Electronics tip
                 </p>
                 <p className="text-xs text-blue-600">
-                  Enable "Fragile" for extra care. Pack in bubble wrap and mark the declared value accurately for insurance.
+                  Enable "Fragile" for extra care. Pack in bubble wrap and mark
+                  the declared value accurately for insurance.
                 </p>
               </div>
             )}
@@ -685,7 +1162,8 @@ export default function NewOrderPage() {
                   <Info className="h-3.5 w-3.5" /> Food delivery tip
                 </p>
                 <p className="text-xs text-orange-600">
-                  Make sure the food is sealed properly. Add delivery instructions for handling (e.g. "keep upright").
+                  Make sure the food is sealed properly. Add delivery
+                  instructions for handling (e.g. "keep upright").
                 </p>
               </div>
             )}
@@ -695,7 +1173,8 @@ export default function NewOrderPage() {
                   <Info className="h-3.5 w-3.5" /> Medicine tip
                 </p>
                 <p className="text-xs text-green-600">
-                  Ensure medicines are properly sealed. Add receiver's alternate phone for faster handover.
+                  Ensure medicines are properly sealed. Add receiver's alternate
+                  phone for faster handover.
                 </p>
               </div>
             )}
@@ -705,7 +1184,8 @@ export default function NewOrderPage() {
                   <ShieldAlert className="h-3.5 w-3.5" /> High-value item
                 </p>
                 <p className="text-xs text-yellow-700">
-                  Enable Fragile and declare accurate value. OTP verification will be required at both ends.
+                  Enable Fragile and declare accurate value. OTP verification
+                  will be required at both ends.
                 </p>
               </div>
             )}
@@ -723,7 +1203,9 @@ export default function NewOrderPage() {
             <div className="flex items-center gap-0.5 font-bold text-primary-700">
               <IndianRupee className="h-3.5 w-3.5" />
               <span>{priceEstimate.total}</span>
-              <span className="text-xs font-normal text-gray-400 ml-1">est.</span>
+              <span className="text-xs font-normal text-gray-400 ml-1">
+                est.
+              </span>
             </div>
           </div>
         )}
@@ -734,11 +1216,17 @@ export default function NewOrderPage() {
           className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 text-base disabled:opacity-60"
         >
           {loading ? (
-            <><LoadingSpinner size="sm" /> Placing Order…</>
+            <>
+              <LoadingSpinner size="sm" /> Placing Order…
+            </>
           ) : orderSuccess ? (
-            <><CheckCircle className="h-5 w-5" /> Order Placed!</>
+            <>
+              <CheckCircle className="h-5 w-5" /> Order Placed!
+            </>
           ) : (
-            <><ArrowRight className="h-5 w-5" /> Place Order</>
+            <>
+              <ArrowRight className="h-5 w-5" /> Place Order
+            </>
           )}
         </button>
         {(!pickupCoords || !dropCoords) && (
