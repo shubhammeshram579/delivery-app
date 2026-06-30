@@ -122,7 +122,7 @@ export default function AdminDriversPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {['Name', 'Email', 'Phone', 'Onboarding Verification', 'Joined', 'Action'].map((h) => (
+                {['Name', 'Email', 'Phone','Vehicle', 'Onboarding Verification', 'Joined', 'Action'].map((h) => (
                   <th key={h} className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
@@ -137,6 +137,7 @@ export default function AdminDriversPage() {
                   <td className="px-6 py-4 font-medium text-slate-900">{u.name}</td>
                   <td className="px-6 py-4 text-slate-500">{u.email}</td>
                   <td className="px-6 py-4 text-slate-500">{u.phone}</td>
+                  <td className="px-6 py-4 text-slate-500">{u?.driverProfile?.vehicleType}</td>
                   <td className="px-6 py-4">
                     {u.driverProfile?.isVerified ? (
                       <span className="inline-flex items-center gap-1 text-xs font-semibold bg-green-50 text-green-700 px-2.5 py-1 rounded-md border border-green-200">✓ Approved</span>

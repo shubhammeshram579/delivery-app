@@ -111,18 +111,6 @@ deliveryOtpVerified: {
   defaultValue: false,
 },
 
-// Package Details
-// packageCategory: {
-//   type: DataTypes.ENUM(
-//     'documents',
-//     'electronics',
-//     'food',
-//     'clothes',
-//     'other'
-//   ),
-//   defaultValue: 'other',
-// },
-
 packageCategory: {
   type: DataTypes.ENUM(
     "documents",
@@ -179,6 +167,11 @@ orderType: {
 
 passengerCount: {
   type: DataTypes.INTEGER,
+  defaultValue: null,
+},
+
+vehicleType: {
+  type: DataTypes.STRING,
   defaultValue: null,
 },
 

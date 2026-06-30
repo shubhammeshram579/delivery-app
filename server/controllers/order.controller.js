@@ -12,7 +12,7 @@ const {
 const createOrder = async (req, res) => {
   const order = await orderService.createOrder(req.user.id, req.body);
 
-  console.log(req.body)
+  // console.log(req.body)
   res
     .status(201)
     .json({

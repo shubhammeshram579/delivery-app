@@ -1,81 +1,27 @@
-// 'use client';
-// import { useSelector } from 'react-redux';
-// import { selectUser } from '../../../redux/slices/authSlice';
-// import { useRequireAuth } from '../../../components/shared/AuthGuard';
-// import { DashboardLayout } from '../../../components/shared/Layout';
-// // import { driverService } from '../../../services/index';
-// import { useEffect, useState } from 'react';
-
-// export default function DriverProfilePage() {
-//   useRequireAuth('driver');
-//   const user = useSelector(selectUser);
-
-//   // const [users, setUsers] = useState([])
-
-//   // console.log("useSta" ,users)
-
-
-
-
-//   // useEffect(() => {
-//   //   const  fatchUsers = async () => {
-
-//   //   const res = await driverService.getProfile();
-
-//   //   setUsers(res.data.data.driver)
-
-//   //   }
-
-//   //   fatchUsers()
-
-//   // },[])
-
-//   // console.log(user);
-//   return (
-//     <DashboardLayout role="driver" title="Profile">
-//       <div className="max-w-xl">
-//         <div className="card p-6">
-//           <div className="flex items-center gap-4 mb-6">
-//             <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 text-2xl font-bold">
-//               {user?.name?.[0]}
-//             </div>
-//             <div>
-//               <p className="font-semibold text-gray-900">{user?.name}</p>
-//               <p className="text-sm text-gray-500">{user?.email}</p>
-//               <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Driver</span>
-//             </div>
-//           </div>
-//           <div className="space-y-3 text-sm">
-//             <div className="flex justify-between py-2 border-b border-gray-50">
-//               <span className="text-gray-500">Email</span>
-//               <span className="font-medium">{user?.email}</span>
-//             </div>
-//             <div className="flex justify-between py-2 border-b border-gray-50">
-//               <span className="text-gray-500">Phone</span>
-//               <span className="font-medium">{user?.phone}</span>
-//             </div>
-//             <div className="flex justify-between py-2">
-//               <span className="text-gray-500">Email Verified</span>
-//               <span className={user?.isEmailVerified ? 'text-green-600 font-medium' : 'text-red-500'}>
-//                 {user?.isEmailVerified ? '✓ Verified' : 'Not verified'}
-//               </span>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     </DashboardLayout>
-//   );
-// }
-
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { z } from 'zod'; // 1. Import Zod
 import { selectUser } from '../../../redux/slices/authSlice';
 import { useRequireAuth } from '../../../components/shared/AuthGuard';
 import { DashboardLayout } from '../../../components/shared/Layout';
-import { driverService } from '../../../services/index'; // Uncommented & integrated
+import { driverService } from '../../../services/index';
+
+// 2. Define the Driver Profile Validation Schema
+const driverProfileSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters long.').trim(),
+  phone: z.string().regex(/^[6-9]\d{9}$/, 'Please enter a valid 10-digit phone number.'),
+  vehicleType: z.enum(['bike', 'scooter', 'car', 'van', 'truck'], {
+    errorMap: () => ({ message: 'Please select a valid vehicle type.' }),
+  }),
+  vehicleNumber: z
+    .string()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4}$/, 'Format must match standard patterns (e.g., MH-12-XX-XXXX).'),
+  licenseNumber: z.string().min(5, 'Driver license registration identification number is required.'),
+  aadhaarNumber: z.string().length(12, 'National identity card must contain exactly 12 numeric digits.'),
+});
 
 export default function DriverProfilePage() {
   useRequireAuth('driver');
@@ -87,6 +33,9 @@ export default function DriverProfilePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+
+  // 3. Client Validation Error Tracking State
+  const [errors, setErrors] = useState({});
 
   // Form State
   const [formData, setFormData] = useState({
@@ -153,6 +102,11 @@ export default function DriverProfilePage() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Proactively clear field error when typing
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
 
   // Handle local file selection & generate object URLs for instant previews
@@ -170,12 +124,41 @@ export default function DriverProfilePage() {
     e.preventDefault();
     setSubmitting(true);
     setMessage({ type: '', text: '' });
+    setErrors({});
+
+    // 4. Validate through Zod before submission execution
+    const validationResult = driverProfileSchema.safeParse(formData);
+
+    if (!validationResult.success) {
+      // Map schema validation issues to error state structure
+      const formattedErrors = {};
+      validationResult.error.issues.forEach((issue) => {
+        const pathKey = issue.path[0];
+        if (!formattedErrors[pathKey]) {
+          formattedErrors[pathKey] = issue.message;
+        }
+      });
+
+      setErrors(formattedErrors);
+      setSubmitting(false);
+      setMessage({ type: 'error', text: 'Please review and fix highlighted form validation errors.' });
+      
+      // Auto-focus structural tab depending on field failures
+      if (formattedErrors.name || formattedErrors.phone) {
+        setActiveTab('personal');
+      } else if (formattedErrors.vehicleType || formattedErrors.vehicleNumber) {
+        setActiveTab('vehicle');
+      } else if (formattedErrors.licenseNumber || formattedErrors.aadhaarNumber) {
+        setActiveTab('documents');
+      }
+      return;
+    }
 
     try {
       const data = new FormData();
       
-      // Append text fields
-      Object.entries(formData).forEach(([key, value]) => {
+      // Append text fields from valid payload
+      Object.entries(validationResult.data).forEach(([key, value]) => {
         data.append(key, value);
       });
 
@@ -184,7 +167,7 @@ export default function DriverProfilePage() {
         if (file) data.append(key, file);
       });
 
-      // Pass directly to service layer (Must accept FormData payload)
+      // Pass directly to service layer
       const response = await driverService.updateProfile(data);
       
       setDriverProfile(response.data.data.driver);
@@ -293,12 +276,16 @@ export default function DriverProfilePage() {
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)} Information
+              {/* Optional UI visual feedback for unseen validation errors on other tabs */}
+              {tab === 'personal' && (errors.name || errors.phone) && <span className="ml-1 text-red-500">•</span>}
+              {tab === 'vehicle' && (errors.vehicleType || errors.vehicleNumber) && <span className="ml-1 text-red-500">•</span>}
+              {tab === 'documents' && (errors.licenseNumber || errors.aadhaarNumber) && <span className="ml-1 text-red-500">•</span>}
             </button>
           ))}
         </div>
 
         {/* Full Form Control Structure */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           
           {/* TAB 1: PERSONAL DETAILS */}
           {activeTab === 'personal' && (
@@ -307,11 +294,13 @@ export default function DriverProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Full Name</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-slate-900" required />
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.name ? 'border-red-500' : 'border-slate-200'}`} />
+                  {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Phone Connection</label>
-                  <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-slate-900" required />
+                  <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.phone ? 'border-red-500' : 'border-slate-200'}`} />
+                  {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
                 </div>
                 <div className="space-y-1.5 opacity-60">
                   <label className="text-sm font-medium text-slate-700">Email (Immutable Account Anchor)</label>
@@ -328,15 +317,17 @@ export default function DriverProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Vehicle Type</label>
-                  <select name="vehicleType" value={formData.vehicleType} onChange={handleInputChange} className="w-full rounded-lg border border-slate-200 p-2 text-sm bg-white focus:outline-slate-900">
+                  <select name="vehicleType" value={formData.vehicleType} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm bg-white focus:outline-slate-900 ${errors.vehicleType ? 'border-red-500' : 'border-slate-200'}`}>
                     {['bike', 'scooter', 'car', 'van', 'truck'].map((type) => (
                       <option key={type} value={type}>{type.toUpperCase()}</option>
                     ))}
                   </select>
+                  {errors.vehicleType && <p className="text-xs text-red-500 mt-1">{errors.vehicleType}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Vehicle Plate Number</label>
-                  <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-slate-900" placeholder="MH-12-XX-XXXX" required />
+                  <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.vehicleNumber ? 'border-red-500' : 'border-slate-200'}`} placeholder="MH-12-XX-XXXX" />
+                  {errors.vehicleNumber && <p className="text-xs text-red-500 mt-1">{errors.vehicleNumber}</p>}
                 </div>
               </div>
             </div>
@@ -355,7 +346,8 @@ export default function DriverProfilePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">License ID String</label>
-                    <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleInputChange} className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-slate-900" required />
+                    <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.licenseNumber ? 'border-red-500' : 'border-slate-200'}`} />
+                    {errors.licenseNumber && <p className="text-xs text-red-500 mt-1">{errors.licenseNumber}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">Upload License Copy (JPG/PNG)</label>
@@ -372,22 +364,23 @@ export default function DriverProfilePage() {
               {/* AADHAAR CARD REGISTRATION */}
               <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
-                  <h4 className="font-semibold text-slate-900 text-sm">National Identity Card (Aadhaar)</h4>
+                  <h4 className="font-semibold text-slate-900 text-sm">National Identity Card</h4>
                   <StatusBadge status={driverProfile?.aadhaarStatus} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">12-Digit Aadhaar Unique ID</label>
-                    <input type="text" name="aadhaarNumber" maxLength={12} value={formData.aadhaarNumber} onChange={handleInputChange} className="w-full rounded-lg border border-slate-200 p-2 text-sm focus:outline-slate-900" placeholder="123456789012" />
+                    <label className="text-sm font-medium text-slate-700">12-Digit Unique ID</label>
+                    <input type="text" name="aadhaarNumber" maxLength={12} value={formData.aadhaarNumber} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.aadhaarNumber ? 'border-red-500' : 'border-slate-200'}`} placeholder="123456789012" />
+                    {errors.aadhaarNumber && <p className="text-xs text-red-500 mt-1">{errors.aadhaarNumber}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Upload Aadhaar Front Copy</label>
+                    <label className="text-sm font-medium text-slate-700">Upload Front Copy</label>
                     <input type="file" name="aadhaarDoc" accept="image/*" onChange={handleFileChange} className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
                   </div>
                 </div>
                 {previews.aadhaarDoc && (
                   <div className="mt-2 w-40 h-24 border rounded overflow-hidden bg-slate-50">
-                    <img src={previews.aadhaarDoc} alt="Aadhaar Preview" className="w-full h-full object-contain" />
+                    <img src={previews.aadhaarDoc} alt="Preview" className="w-full h-full object-contain" />
                   </div>
                 )}
               </div>
@@ -417,7 +410,6 @@ export default function DriverProfilePage() {
             <button
               type="submit"
               disabled={submitting}
-              // className="bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm py-2.5 px-6 rounded-lg transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               className="btn-primary"
             >
               {submitting ? (

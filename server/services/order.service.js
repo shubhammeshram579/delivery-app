@@ -195,7 +195,7 @@ const findNearestDriver = async (pickupLat, pickupLng,orderType) => {
 const createOrder = async (customerId, orderData) => {
   const transaction = await sequelize.transaction();
 
-  console.log("orderData",orderData)
+  // console.log("orderData",orderData)
 
   try {
     const {
@@ -343,13 +343,32 @@ const getOrders = async ({ role, userId, page = 1, limit = 10, status, orderNumb
       throw new NotFoundError("Driver profile not found");
     }
 
-    // Drivers see orders assigned to them OR pending orders waiting for a driver
-    andConditions.push({
-      [Op.or]: [
-        { driverId: driver.id },
-        { status: "pending" }
-      ]
-    });
+  // ── 👇 FULLY DYNAMIC EXACT-MATCH VEHICLE BLOCK ──
+    if (driver.vehicleType === "car") {
+      // Car drivers strictly see passenger rides assigned to them or pending
+      andConditions.push({
+        [Op.or]: [
+          { driverId: driver.id }, 
+          { 
+            status: "pending",
+            orderType: "passenger" 
+          }
+        ]
+      });
+    } else {
+      // Bikes, Scooters, Vans, and Trucks see pending packages 
+      // that EXACTLY match their specific vehicle capacities!
+      andConditions.push({
+        [Op.or]: [
+          { driverId: driver.id }, 
+          { 
+            status: "pending", 
+            orderType: "delivery",
+            vehicleType: driver.vehicleType // 👈 Matches 'bike', 'scooter', 'van', or 'truck' exactly
+          }
+        ]
+      });
+    }
   }
 
   // 2. Filter by status (Handles driver specific filtering smoothly)
@@ -472,10 +491,19 @@ const acceptOrder = async (orderId, driverUserId) => {
       throw new ValidationError("Order already accepted");
     }
 
+    // ── 👇 STRICT MATCHING VALIDATIONS ──
 
+    // 1. If it's a passenger ride, only allow Car drivers
     if (order.orderType === "passenger" && driver.vehicleType !== "car") {
       throw new ValidationError(
         `Passenger rides can only be accepted by Car drivers. Your current vehicle registered is a ${driver.vehicleType}.`
+      );
+    }
+
+    // 2. If it's a package delivery, ensure exact vehicle alignment
+    if (order.orderType === "delivery" && order.vehicleType !== driver.vehicleType) {
+      throw new ValidationError(
+        `This delivery order requires a ${order.vehicleType}. You cannot accept it with your ${driver.vehicleType}.`
       );
     }
 
@@ -501,10 +529,9 @@ const acceptOrder = async (orderId, driverUserId) => {
         maxAllowedPickupDistance = 5; 
       }
     } else if (driver.vehicleType === 'car' || driver.vehicleType === 'van') {
-      maxAllowedPickupDistance = 10;
+      maxAllowedPickupDistance = 10; // Cars and vans have a wider radius
     } else if (driver.vehicleType === 'truck') {
-      // Large vehicle (Chota Hathi / Trucks) - can travel much farther because payout is higher
-      maxAllowedPickupDistance = 50; 
+      maxAllowedPickupDistance = 50; // Trucks travel farther for high-payout cargo journeys
     }
 
     // 3. Enforce the calculated restriction
@@ -516,6 +543,7 @@ const acceptOrder = async (orderId, driverUserId) => {
 
     // ── 👆 REAL-WORLD CONDITION BUSINESS LOGIC END ──
 
+    // Update Order details
     await order.update(
       {
         driverId: driver.id,
@@ -526,6 +554,7 @@ const acceptOrder = async (orderId, driverUserId) => {
       { transaction }
     );
 
+    // Set driver status to unavailable
     await driver.update(
       { isAvailable: false },
       { transaction }
@@ -533,11 +562,16 @@ const acceptOrder = async (orderId, driverUserId) => {
 
     await transaction.commit();
 
+    // Clear stale caching lists
     await cacheDelByPattern(`orders:*`);
 
+    // Contextual notifications based on ride type
+    const isPassenger = order.orderType === "passenger";
     await sendNotification(order.customerId, {
-      title: "Driver Assigned",
-      body: `Your order #${order.orderNumber} has been accepted.`,
+      title: isPassenger ? "Driver is on the way!" : "Driver Assigned",
+      body: isPassenger 
+        ? `Your driver is heading to your location.` 
+        : `Your delivery order #${order.orderNumber} has been accepted by a ${driver.vehicleType} driver.`,
       type: "order",
       data: { orderId },
     });
