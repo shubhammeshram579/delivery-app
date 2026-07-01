@@ -36,6 +36,7 @@ const authLimiter = rateLimit({
 // ─────────────────────────────────────────────
 // Auth Routes
 // ─────────────────────────────────────────────
+router.post("/registerAdmin", authLimiter, registerValidator, ctrl.registerAdmin);
 
 router.post("/register", authLimiter, registerValidator, ctrl.register);
 

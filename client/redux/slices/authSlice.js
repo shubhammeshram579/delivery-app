@@ -150,6 +150,20 @@ export const loginUser = createAsyncThunk(
   }
 );
 
+export const registerAdmin = createAsyncThunk(
+  'auth/registerAdmin',
+  async (formData, { rejectWithValue }) => {
+    try {
+      const { data } = await authService.registerAdmin(formData);
+      const { user, accessToken, refreshToken } = data.data;
+      saveAuthCookies(accessToken, refreshToken);
+      return { user, accessToken, refreshToken };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Registration failed');
+    }
+  }
+);
+
 export const registerUser = createAsyncThunk(
   'auth/register',
   async (formData, { rejectWithValue }) => {

@@ -49,6 +49,204 @@ const generateTokens = (userId) => {
   };
 };
 
+
+// ─────────────────────────────────────────────
+// Admin Registration
+// ─────────────────────────────────────────────
+
+// const registerAdmin = async ({ name, email, password, phone }) => {
+//   const transaction = await sequelize.transaction();
+
+//   try {
+//     email = email.toLowerCase().trim();
+
+//     // 1. Validation
+//     if (!name || !email || !password || !phone) {
+//       throw new ValidationError("All fields are required");
+//     }
+
+//     if (password.length < 6) {
+//       throw new ValidationError("Password must be at least 6 characters");
+//     }
+
+//     // 2. Check existing constraints
+//     const existingUser = await User.scope("withPassword").findOne({
+//       where: { email },
+//     });
+
+//     if (existingUser) {
+//       throw new ConflictError("Email already registered");
+//     }
+
+//     const existingPhone = await User.findOne({
+//       where: { phone },
+//     });
+
+//     if (existingPhone) {
+//       throw new ConflictError("Phone already registered");
+//     }
+
+//     // 3. Create Admin User
+//     // Matching migration properties: role is 'admin' and verification flags are preset to true
+//     const adminUser = await User.create(
+//       {
+//         name,
+//         email,
+//         password,
+//         phone,
+//         role: "admin",
+//         isActive: true,
+//         isEmailVerified: true,
+//         isPhoneVerified: true,
+//       },
+//       {
+//         transaction,
+//       },
+//     );
+
+//     // Commit Transaction
+//     await transaction.commit();
+
+//     // 4. Generate Auth Tokens
+//     const { accessToken, refreshToken } = generateTokens(adminUser.id);
+
+//     // Save refresh token to the database
+//     await User.update(
+//       {
+//         refreshToken,
+//       },
+//       {
+//         where: {
+//           id: adminUser.id,
+//         },
+//       },
+//     );
+
+//     // 5. Return Response Payload
+//     return {
+//       user: {
+//         id: adminUser.id,
+//         name: adminUser.name,
+//         email: adminUser.email,
+//         role: adminUser.role,
+//       },
+//       accessToken,
+//       refreshToken,
+//     };
+//   } catch (error) {
+//     // Roll back database changes if anything fails
+//     await transaction.rollback();
+//     throw error;
+//   }
+// };
+
+
+// ─────────────────────────────────────────────
+// Admin Registration with Email OTP Verification
+// ─────────────────────────────────────────────
+
+const registerAdmin = async ({ name, email, password, phone }) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    email = email.toLowerCase().trim();
+
+    // 1. Validation
+    if (!name || !email || !password || !phone) {
+      throw new ValidationError("All fields are required");
+    }
+
+    if (password.length < 6) {
+      throw new ValidationError("Password must be at least 6 characters");
+    }
+
+    // 2. Check existing constraints
+    const existingUser = await User.scope("withPassword").findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictError("Email already registered");
+    }
+
+    const existingPhone = await User.findOne({
+      where: { phone },
+    });
+
+    if (existingPhone) {
+      throw new ConflictError("Phone already registered");
+    }
+
+    // 3. Create Admin User (Setting verification flags to false initially)
+    const adminUser = await User.create(
+      {
+        name,
+        email,
+        password,
+        phone,
+        role: "admin",
+        isActive: true,
+        isEmailVerified: false, // Must verify via OTP
+        isPhoneVerified: false,
+      },
+      {
+        transaction,
+      },
+    );
+
+    // Commit Transaction
+    await transaction.commit();
+
+    // 4. Generate OTP & Cache in Redis (Matches your regular user registration)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await cacheSet(`otp:email:${email}`, otp, 10 * 60);
+
+    // Send the OTP email
+    await sendEmail({
+      to: email,
+      subject: "Verify Your Email",
+      template: "verify-email",
+      data: {
+        name,
+        otp,
+      },
+    });
+
+    // 5. Generate Auth Tokens
+    const { accessToken, refreshToken } = generateTokens(adminUser.id);
+
+    // Save refresh token to database
+    await User.update(
+      {
+        refreshToken,
+      },
+      {
+        where: {
+          id: adminUser.id,
+        },
+      },
+    );
+
+    // 6. Return Response Payload
+    return {
+      user: {
+        id: adminUser.id,
+        name: adminUser.name,
+        email: adminUser.email,
+        role: adminUser.role,
+      },
+      accessToken,
+      refreshToken,
+    };
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+
+// customer and driver register 
 const register = async ({
   name,
   email,
@@ -600,6 +798,7 @@ const resendResetOtp = async (email) => {
 
 
 module.exports = {
+  registerAdmin,
   register,
   login,
   verifyEmailOtp,

@@ -7,6 +7,27 @@ const cookieOptions = {
   sameSite: 'strict',
 };
 
+// admin register 
+const registerAdmin = asyncHandler(async (req, res) => {
+  const data = await authService.registerAdmin(req.body);
+
+  res.cookie('refreshToken', data.refreshToken, {
+    ...cookieOptions,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Registration successful. Please verify email.',
+    data: {
+      user: data.user,
+      accessToken: data.accessToken,
+    },
+  });
+});
+
+
+// driver and customer register 
 const register = asyncHandler(async (req, res) => {
   const data = await authService.register(req.body);
 
@@ -147,6 +168,7 @@ const resendResetOtp = async (req, res) => {
 };
 
 module.exports = {
+  registerAdmin,
   register,
   login,
   verifyEmail,
