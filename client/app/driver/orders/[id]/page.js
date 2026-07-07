@@ -29,6 +29,7 @@ import { useSocket } from "../../../../hooks/useSocket";
 import { useGeolocation } from "../../../../hooks";
 import { orderService, chatService } from "../../../../services/index";
 import toast from "react-hot-toast";
+import AISmartReply from '../../../../components/ai/AISmartReply';
 
 // ── Open Google Maps turn-by-turn navigation ───────────────
 const openGoogleMapsNavigation = (destLat, destLng) => {
@@ -168,6 +169,9 @@ export default function DriverOrderDetailPage() {
   const prevStatusRef = useRef(null);
 
   const isPassenger = order?.orderType === "passenger";
+
+
+  const lastCustomerMsg = messages.filter(m => m.senderRole === 'customer').at(-1)?.message;
 
   // ─────────────────────────────────────────────────────────
   // 1. Load order
@@ -1081,6 +1085,12 @@ export default function DriverOrderDetailPage() {
                 )}
                 <div ref={messagesEndRef} />
               </div>
+
+              <AISmartReply
+  lastCustomerMessage={lastCustomerMsg}
+  orderStatus={order.status}
+  onUse={(text) => setChatInput(text)}
+/>
               <div className="flex gap-2">
                 <input
                   value={chatInput}

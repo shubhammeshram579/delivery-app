@@ -6,6 +6,7 @@ import { LoadingSpinner, EmptyState, Pagination } from '../../../components/ui';
 import { adminService } from '../../../services/index';
 import { Eye, ShieldAlert, ShieldCheck, X, Search, Filter } from 'lucide-react';
 import toast from 'react-hot-toast';
+import AIFraudCheck from '../../../components/ai/AIFraudCheck';
 
 export default function AdminDriversPage() {
   useRequireAuth('admin');
@@ -156,6 +157,9 @@ export default function AdminDriversPage() {
                       <Eye className="h-3.5 w-3.5" /> Review Docs
                     </button>
                   </td>
+
+                   {/* In your table row actions column */}
+                  <AIFraudCheck driverId={u.id} />
                 </tr>
               ))}
             </tbody>
@@ -301,6 +305,8 @@ export default function AdminDriversPage() {
                   />
                 </div>
               )}
+
+             
 
               {/* Actions Footer Bar */}
               <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 bg-white sticky bottom-0">

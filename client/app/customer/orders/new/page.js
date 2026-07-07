@@ -29,6 +29,8 @@ import { DashboardLayout } from "..//..//..//../components/shared/Layout";
 import { LoadingSpinner, ErrorAlert } from "..//..//..//../components/ui";
 import { useRequireAuth } from "..//..//..//../components/shared/AuthGuard";
 import { useGoogleMaps } from "..//..//..//../hooks";
+import AIBookingAssistant from "../../../../components/ai/AIBookingAssistant";
+import AIPackagingAdvisor from "../../../../components/ai/AIPackagingAdvisor";
 
 // ─────────────────────────────────────────────────────────
 // Package categories — real-world delivery app categories
@@ -501,8 +503,6 @@ export default function NewOrderPage() {
     });
   }, [pickupCoords, dropCoords, weight, isFragile, vehicleType]); // Added
 
-
-
   // Sync Package Category changes with Form Values and Fields
   useEffect(() => {
     if (category === "passenger") {
@@ -877,6 +877,10 @@ export default function NewOrderPage() {
                       className={`input-field resize-none ${errors.packageDescription ? "border-red-400" : ""}`}
                       {...register("packageDescription")}
                     />
+
+                    <AIPackagingAdvisor
+                      itemDescription={watch("packageDescription")}
+                    />
                     <p className="mt-1 text-xs text-gray-400 text-right">
                       {watch("packageDescription")?.length || 0}/300
                     </p>
@@ -1066,6 +1070,17 @@ export default function NewOrderPage() {
                 </p>
               )}
             </form>
+
+            <AIBookingAssistant
+              onConfirm={(data) => {
+                // Prefill your existing form fields
+                setValue("pickupAddress", data.pickup || "");
+                setValue("dropAddress", data.drop || "");
+                setValue("packageDescription", data.item || "");
+                setValue("packageWeight", data.weight_kg || 1);
+                // You can also auto-select vehicle if your form supports it
+              }}
+            />
           </div>
 
           {/* ── Right column — Map + Estimate ─────────── */}

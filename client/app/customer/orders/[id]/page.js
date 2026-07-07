@@ -33,6 +33,7 @@ import { orderService, chatService } from "../../../../services/index";
 import toast from "react-hot-toast";
 import Image from 'next/image';
 import carImage from '../../../../public/car.png';
+import AIPriceExplainer from '../../../../components/ai/AIPriceExplainer';
 
 
 // ── Order timeline steps ───────────────────────────────────
@@ -804,6 +805,8 @@ useEffect(() => {
               </div>
             )}
           </div>
+
+          <AIPriceExplainer order={order} />
 
           {/* Driver info */}
           {hasDriver && (
