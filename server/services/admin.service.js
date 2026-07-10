@@ -135,10 +135,36 @@ const verifyDriver = async (userId, body) => {
     throw new ValidationError('Invalid status type provided for verification update.');
   }
 
-  if (licenseStatus) driver.licenseStatus = licenseStatus;
-  if (aadhaarStatus) driver.aadhaarStatus = aadhaarStatus;
-  if (vehicleDocumentStatus) driver.vehicleDocumentStatus = vehicleDocumentStatus;
+  // Current date tracking boundary (YYYY-MM-DD format verification)
+  const todayDateString = new Date().toISOString().split('T')[0];
 
+  // 1. Evaluate Regulatory Document Status Updates
+  if (licenseStatus) {
+    // Override manual approval if the database records show the license has already expired
+    if (licenseStatus === 'approved' && driver.licenseExpiryDate && driver.licenseExpiryDate < todayDateString) {
+      throw new ValidationError('Cannot approve profile: Driving License has already expired.');
+    }
+    driver.licenseStatus = licenseStatus;
+  }
+
+  if (aadhaarStatus) {
+    driver.aadhaarStatus = aadhaarStatus;
+  }
+
+  if (vehicleDocumentStatus) {
+    // Override manual approval if RC Book or Insurance coverage validation timelines have passed
+    if (vehicleDocumentStatus === 'approved') {
+      if (driver.vehicleRegistrationExpiryDate && driver.vehicleRegistrationExpiryDate < todayDateString) {
+        throw new ValidationError('Cannot approve profile: Vehicle Registration (RC Book) has expired.');
+      }
+      if (driver.insuranceExpiryDate && driver.insuranceExpiryDate < todayDateString) {
+        throw new ValidationError('Cannot approve profile: Vehicle Insurance coverage timeline has expired.');
+      }
+    }
+    driver.vehicleDocumentStatus = vehicleDocumentStatus;
+  }
+
+  // 2. Structural State Resolution Logic
   const hasRejections = 
     driver.licenseStatus === 'rejected' || 
     driver.aadhaarStatus === 'rejected' || 

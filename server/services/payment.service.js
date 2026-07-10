@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { Payment, Order } = require('../models');
 const { NotFoundError, ValidationError } = require('../middleware/error.middleware');
 const { sendNotification } = require('../utils/notifications');
+const {notifyAdmins} = require("../utils/adminNotification")
 
 // Lazy init - only create when actually used so missing env doesn't crash startup
 
@@ -71,6 +72,17 @@ const verifyPayment = async ({ razorpayOrderId, razorpayPaymentId, razorpaySigna
     data: { orderId },
   });
 
+  await notifyAdmins({
+    title: "💳 Payment Received",
+    body: `Payment of ₹${order.totalAmount} received for Order #${order.orderNumber}.`,
+    type: "payment",
+    data: {
+        orderId: order.id,
+        paymentId: payment.id,
+        amount: order.totalAmount
+    }
+  });
+
   return { message: 'Payment verified successfully', payment };
 };
 
@@ -95,6 +107,26 @@ const handleWebhook = async (rawBody, signature) => {
     const { order_id } = event.payload.payment.entity;
     const payment = await Payment.findOne({ where: { razorpayOrderId: order_id } });
     if (payment) await payment.update({ status: 'failed' });
+
+    const order = await Order.findByPk(payment.orderId);
+
+    await notifyAdmins({
+        title: "❌ Payment Failed",
+        body: `Payment failed for Order #${order.orderNumber}.`,
+        type: "payment",
+        data: {
+            orderId: order.id,
+            paymentId: payment.id
+        }
+    });
+
+
+    await sendNotification(order.customerId,{
+        title:"Payment Failed",
+        body:`Your payment for Order #${order.orderNumber} failed.`,
+        type:"payment",
+        data:{orderId:order.id}
+    });
   }
   return { received: true };
 };
@@ -109,6 +141,26 @@ const initiateRefund = async (orderId) => {
   });
 
   await payment.update({ status: 'refunded', refundId: refund.id, refundedAt: new Date() });
+
+  const order = await Order.findByPk(orderId);
+
+  await notifyAdmins({
+      title:"💰 Refund Initiated",
+      body:`Refund initiated for Order #${order.orderNumber}.`,
+      type:"payment",
+      data:{
+          orderId:order.id,
+          refundId:refund.id
+      }
+  });
+
+  await sendNotification(order.customerId,{
+      title:"Refund Initiated",
+      body:`Your refund has been initiated.`,
+      type:"payment",
+      data:{orderId}
+  });
+  
   return { message: 'Refund initiated', refundId: refund.id };
 };
 

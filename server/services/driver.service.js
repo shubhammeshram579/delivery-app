@@ -1,8 +1,58 @@
+const cron = require('node-cron');
 const { sequelize } = require('../config/database');
 const { Driver, User, Earnings } = require('../models');
 const { Op } = require('sequelize');
 const { cacheGet, cacheSet } = require('../config/redis');
 const { NotFoundError, ValidationError } = require('../middleware/error.middleware');
+const {sendNotification} = require("../utils/notifications")
+const {notifyAdmins} = require("../utils/adminNotification")
+
+
+// Run every day at midnight (00:00)
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running daily document expiration checks...');
+
+  const targets = [30, 7]; // Days remaining triggers
+
+  for (const days of targets) {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + days);
+    const dateString = targetDate.toISOString().split('T')[0]; // Format matches DATEONLY ('YYYY-MM-DD')
+
+    // Find drivers matching target dates on any document
+    const driversToNotify = await Driver.findAll({
+      where: {
+        [Op.or]: [
+          { licenseExpiryDate: dateString },
+          { insuranceExpiryDate: dateString },
+          { vehicleRegistrationExpiryDate: dateString }
+        ]
+      }
+    });
+
+    for (const driver of driversToNotify) {
+      let documentName = '';
+      if (driver.licenseExpiryDate === dateString) documentName = 'Driving License';
+      else if (driver.insuranceExpiryDate === dateString) documentName = 'Vehicle Insurance';
+      else if (driver.vehicleRegistrationExpiryDate === dateString) documentName = 'Vehicle Registration (RC)';
+
+      // 1. Notify the Driver
+      await sendNotification(driver.userId, {
+        title: `⚠️ Document Expiry Warning`,
+        body: `Your ${documentName} will expire in ${days} days. Please update your document details to avoid suspension.`,
+        type: "system"
+      });
+
+      // 2. Notify the Admin Dashboard / System
+      await notifyAdmins({
+        title: `🚨 Driver Document Expiring Soon`,
+        body: `Driver Profile ID: ${driver.id}'s ${documentName} expires in ${days} days.`,
+        type: "system",
+        data: { driverId: driver.id }
+      });
+    }
+  }
+});
 
 const getDriverProfile = async (userId) => {
   const driver = await Driver.findOne({
@@ -13,107 +63,6 @@ const getDriverProfile = async (userId) => {
   return driver;
 };
 
-// const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
-//   const {
-//     name,
-//     phone,
-//     vehicleType,
-//     vehicleNumber,
-//     licenseNumber,
-//     aadhaarNumber
-//   } = updateFields;
-
-//   const driver = await Driver.findOne({ where: { userId: currentUser.id } });
-//   if (!driver) throw new NotFoundError('Driver profile not found');
-
-//   // Validate Enum options early
-//   const allowedVehicles = ['bike', 'scooter', 'car', 'van', 'truck'];
-//   if (vehicleType && !allowedVehicles.includes(vehicleType)) {
-//     throw new ValidationError(`Invalid vehicle type. Choose from: ${allowedVehicles.join(', ')}`);
-//   }
-
-//   // Prevent identity/vehicle duplicates
-//   if (vehicleNumber || licenseNumber || aadhaarNumber) {
-//     const duplicateCheck = await Driver.findOne({
-//       where: {
-//         userId: { [Op.ne]: currentUser.id },
-//         [Op.or]: [
-//           vehicleNumber ? { vehicleNumber } : null,
-//           licenseNumber ? { licenseNumber } : null,
-//           aadhaarNumber ? { aadhaarNumber } : null
-//         ].filter(Boolean)
-//       }
-//     });
-//     if (duplicateCheck) {
-//       throw new ValidationError('Vehicle number, License number, or Aadhaar number is already in use by another account.');
-//     }
-//   }
-
-//   // Use a transactional pipeline block
-//   const transaction = await sequelize.transaction();
-//   let securityResetRequired = false;
-
-//   try {
-//     // Update structural user values
-//     await User.update(
-//       {
-//         name: name || currentUser.name,
-//         phone: phone || currentUser.phone,
-//         avatar: fileUrls.avatar || currentUser.avatar,
-//       },
-//       { where: { id: currentUser.id }, transaction }
-//     );
-
-//     const driverUpdates = {
-//       vehicleType: vehicleType || driver.vehicleType,
-//       vehicleNumber: vehicleNumber || driver.vehicleNumber,
-//     };
-
-//     // Evaluate updates against storage configurations to manage validation conditions
-//     if (licenseNumber && licenseNumber !== driver.licenseNumber) {
-//       driverUpdates.licenseNumber = licenseNumber;
-//       driverUpdates.licenseStatus = 'pending';
-//       securityResetRequired = true;
-//     }
-//     if (fileUrls.licenseUrl) {
-//       driverUpdates.licenseUrl = fileUrls.licenseUrl;
-//       driverUpdates.licenseStatus = 'pending';
-//       securityResetRequired = true;
-//     }
-
-//     if (aadhaarNumber && aadhaarNumber !== driver.aadhaarNumber) {
-//       driverUpdates.aadhaarNumber = aadhaarNumber;
-//       driverUpdates.aadhaarStatus = 'pending';
-//       securityResetRequired = true;
-//     }
-//     if (fileUrls.aadhaarUrl) {
-//       driverUpdates.aadhaarUrl = fileUrls.aadhaarUrl;
-//       driverUpdates.aadhaarStatus = 'pending';
-//       securityResetRequired = true;
-//     }
-
-//     if (fileUrls.vehicleDocumentUrl) {
-//       driverUpdates.vehicleDocumentUrl = fileUrls.vehicleDocumentUrl;
-//       driverUpdates.vehicleDocumentStatus = 'pending';
-//       securityResetRequired = true;
-//     }
-
-//     if (securityResetRequired) {
-//       driverUpdates.isVerified = false;
-//       driverUpdates.rejectionReason = null;
-//     }
-
-//     await Driver.update(driverUpdates, { where: { userId: currentUser.id }, transaction });
-//     await transaction.commit();
-
-//     const freshProfile = await getDriverProfile(currentUser.id);
-//     return { profile: freshProfile, securityResetRequired };
-
-//   } catch (error) {
-//     await transaction.rollback();
-//     throw error;
-//   }
-// };
 
 const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
   const {
@@ -123,6 +72,9 @@ const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
     vehicleNumber,
     licenseNumber,
     aadhaarNumber,
+    licenseExpiryDate,
+    insuranceExpiryDate,
+    vehicleRegistrationExpiryDate,
   } = updateFields;
 
   const driver = await Driver.findOne({
@@ -135,14 +87,25 @@ const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
 
   // Validate vehicle type
   const allowedVehicles = ["bike", "scooter", "car", "van", "truck"];
-
   if (vehicleType && !allowedVehicles.includes(vehicleType)) {
     throw new ValidationError(
       `Invalid vehicle type. Choose from: ${allowedVehicles.join(", ")}`
     );
   }
 
-  // Duplicate check
+  // Validate that Expiry dates are future dates
+  const today = new Date().toISOString().split('T')[0];
+  if (licenseExpiryDate && licenseExpiryDate < today) {
+    throw new ValidationError("Driver License has already expired.");
+  }
+  if (insuranceExpiryDate && insuranceExpiryDate < today) {
+    throw new ValidationError("Insurance validity date must be in the future.");
+  }
+  if (vehicleRegistrationExpiryDate && vehicleRegistrationExpiryDate < today) {
+    throw new ValidationError("Vehicle Registration (RC) has already expired.");
+  }
+
+  // Duplicate data check
   if (vehicleNumber || licenseNumber || aadhaarNumber) {
     const duplicate = await Driver.findOne({
       where: {
@@ -165,11 +128,10 @@ const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
   }
 
   const transaction = await sequelize.transaction();
-
   let securityResetRequired = false;
 
   try {
-    // Update User table
+    // Update User core table
     await User.update(
       {
         name: name || currentUser.name,
@@ -187,83 +149,127 @@ const updateDriverProfile = async (currentUser, updateFields, fileUrls) => {
       vehicleNumber: vehicleNumber || driver.vehicleNumber,
     };
 
-    // License Number
+    // License updates
     if (licenseNumber && licenseNumber !== driver.licenseNumber) {
       driverUpdates.licenseNumber = licenseNumber;
-      driverUpdates.licenseStatus = "pending";
       securityResetRequired = true;
     }
-
-    // License Image
+    if (licenseExpiryDate && licenseExpiryDate !== driver.licenseExpiryDate) {
+      driverUpdates.licenseExpiryDate = licenseExpiryDate;
+      securityResetRequired = true;
+    }
     if (fileUrls.licenseUrl) {
       driverUpdates.licenseUrl = fileUrls.licenseUrl;
-      driverUpdates.licenseStatus = "pending";
       securityResetRequired = true;
     }
+    if (securityResetRequired && (licenseNumber || licenseExpiryDate || fileUrls.licenseUrl)) {
+      driverUpdates.licenseStatus = "pending";
+    }
 
-    // Aadhaar Number
+    // Aadhaar updates
+    let aadhaarChanged = false;
     if (aadhaarNumber && aadhaarNumber !== driver.aadhaarNumber) {
       driverUpdates.aadhaarNumber = aadhaarNumber;
-      driverUpdates.aadhaarStatus = "pending";
-      securityResetRequired = true;
+      aadhaarChanged = true;
     }
-
-    // Aadhaar Image
     if (fileUrls.aadhaarUrl) {
       driverUpdates.aadhaarUrl = fileUrls.aadhaarUrl;
+      aadhaarChanged = true;
+    }
+    if (aadhaarChanged) {
       driverUpdates.aadhaarStatus = "pending";
       securityResetRequired = true;
     }
 
-    // Vehicle Document
+    // Vehicle Registration & Insurance updates
+    let vehicleDocsChanged = false;
+    if (vehicleRegistrationExpiryDate && vehicleRegistrationExpiryDate !== driver.vehicleRegistrationExpiryDate) {
+      driverUpdates.vehicleRegistrationExpiryDate = vehicleRegistrationExpiryDate;
+      vehicleDocsChanged = true;
+    }
     if (fileUrls.vehicleDocumentUrl) {
       driverUpdates.vehicleDocumentUrl = fileUrls.vehicleDocumentUrl;
+      vehicleDocsChanged = true;
+    }
+    if (vehicleDocsChanged) {
       driverUpdates.vehicleDocumentStatus = "pending";
       securityResetRequired = true;
     }
 
-    // Reset verification if sensitive information changed
+    // Insurance update (doesn't change status directly but requires a review state update)
+    if (insuranceExpiryDate && insuranceExpiryDate !== driver.insuranceExpiryDate) {
+      driverUpdates.insuranceExpiryDate = insuranceExpiryDate;
+      securityResetRequired = true;
+    }
+
+    // Reset verification flag if any sensitive documentation changed
     if (securityResetRequired) {
       driverUpdates.isVerified = false;
+      driverUpdates.verifiedBy = null;
+      driverUpdates.verifiedAt = null;
       driverUpdates.rejectionReason = null;
     }
 
-    // Final values after update
+    // Collate properties to calculate comprehensive profile completion status
     const finalDriver = {
       vehicleType: driverUpdates.vehicleType,
       vehicleNumber: driverUpdates.vehicleNumber,
-      licenseNumber:
-        driverUpdates.licenseNumber || driver.licenseNumber,
-      aadhaarNumber:
-        driverUpdates.aadhaarNumber || driver.aadhaarNumber,
-      licenseUrl:
-        driverUpdates.licenseUrl || driver.licenseUrl,
-      aadhaarUrl:
-        driverUpdates.aadhaarUrl || driver.aadhaarUrl,
-      vehicleDocumentUrl:
-        driverUpdates.vehicleDocumentUrl ||
-        driver.vehicleDocumentUrl,
+      licenseNumber: driverUpdates.licenseNumber || driver.licenseNumber,
+      licenseUrl: driverUpdates.licenseUrl || driver.licenseUrl,
+      licenseExpiryDate: driverUpdates.licenseExpiryDate || driver.licenseExpiryDate,
+      aadhaarNumber: driverUpdates.aadhaarNumber || driver.aadhaarNumber,
+      aadhaarUrl: driverUpdates.aadhaarUrl || driver.aadhaarUrl,
+      vehicleDocumentUrl: driverUpdates.vehicleDocumentUrl || driver.vehicleDocumentUrl,
+      vehicleRegistrationExpiryDate: driverUpdates.vehicleRegistrationExpiryDate || driver.vehicleRegistrationExpiryDate,
+      insuranceExpiryDate: driverUpdates.insuranceExpiryDate || driver.insuranceExpiryDate,
     };
 
-    // Check profile completion
     driverUpdates.profileCompleted =
       !!finalDriver.vehicleType &&
       !!finalDriver.vehicleNumber &&
       !!finalDriver.licenseNumber &&
-      !!finalDriver.aadhaarNumber &&
       !!finalDriver.licenseUrl &&
+      !!finalDriver.licenseExpiryDate &&
+      !!finalDriver.aadhaarNumber &&
       !!finalDriver.aadhaarUrl &&
-      !!finalDriver.vehicleDocumentUrl;
+      !!finalDriver.vehicleDocumentUrl &&
+      !!finalDriver.vehicleRegistrationExpiryDate &&
+      !!finalDriver.insuranceExpiryDate;
 
-    // Update Driver table
+    // Persist changes
     await Driver.update(driverUpdates, {
-      where: {
-        userId: currentUser.id,
-      },
+      where: { userId: currentUser.id },
       transaction,
     });
 
     await transaction.commit();
+
+    // Trigger System Event Notifications
+    if (!driver.profileCompleted && driverUpdates.profileCompleted) {
+      await notifyAdmins({
+        title: "✅ Driver Profile Completed",
+        body: `${currentUser.name} completed their driver profile and is ready for verification.`,
+        type: "system",
+        data: {
+          driverId: driver.id,
+          userId: currentUser.id,
+          vehicleType: driverUpdates.vehicleType,
+        },
+      });
+    }
+
+    if (securityResetRequired) {
+      await notifyAdmins({
+        title: "📄 Driver Documents Updated",
+        body: `${currentUser.name} updated verification documents. Admin review is required.`,
+        type: "system",
+        data: {
+          driverId: driver.id,
+          userId: currentUser.id,
+          verificationStatus: "pending",
+        },
+      });
+    }
 
     const freshProfile = await getDriverProfile(currentUser.id);
 

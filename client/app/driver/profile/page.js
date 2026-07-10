@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { z } from 'zod'; // 1. Import Zod
+import { z } from 'zod'; 
 import { selectUser } from '../../../redux/slices/authSlice';
 import { useRequireAuth } from '../../../components/shared/AuthGuard';
 import { DashboardLayout } from '../../../components/shared/Layout';
 import { driverService } from '../../../services/index';
 
-// 2. Define the Driver Profile Validation Schema
+// Today's date boundary string comparison helper (YYYY-MM-DD format)
+const todayDateString = new Date().toISOString().split('T')[0];
+
+// 1. Updated Driver Profile Validation Schema with Expiry Extensions
 const driverProfileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters long.').trim(),
   phone: z.string().regex(/^[6-9]\d{9}$/, 'Please enter a valid 10-digit phone number.'),
@@ -20,7 +23,16 @@ const driverProfileSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{2}-\d{2}-[A-Z]{1,2}-\d{4}$/, 'Format must match standard patterns (e.g., MH-12-XX-XXXX).'),
   licenseNumber: z.string().min(5, 'Driver license registration identification number is required.'),
+  licenseExpiryDate: z.string().refine((val) => val >= todayDateString, {
+    message: 'Driving License has already expired or date is invalid.',
+  }),
   aadhaarNumber: z.string().length(12, 'National identity card must contain exactly 12 numeric digits.'),
+  vehicleRegistrationExpiryDate: z.string().refine((val) => val >= todayDateString, {
+    message: 'Vehicle Registration (RC Book) has already expired.',
+  }),
+  insuranceExpiryDate: z.string().refine((val) => val >= todayDateString, {
+    message: 'Vehicle Insurance validity date must be a future date.',
+  }),
 });
 
 export default function DriverProfilePage() {
@@ -34,17 +46,20 @@ export default function DriverProfilePage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  // 3. Client Validation Error Tracking State
+  // Client Validation Error Tracking State
   const [errors, setErrors] = useState({});
 
-  // Form State
+  // Expanded Form State
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     vehicleType: 'bike',
     vehicleNumber: '',
     licenseNumber: '',
+    licenseExpiryDate: '',
     aadhaarNumber: '',
+    vehicleRegistrationExpiryDate: '',
+    insuranceExpiryDate: '',
   });
 
   // File Streams State
@@ -72,14 +87,17 @@ export default function DriverProfilePage() {
         const driver = res.data.data.driver;
         setDriverProfile(driver);
 
-        // Populate Form States
+        // Populate Form States including updated Expiry Attributes
         setFormData({
           name: driver.user?.name || authUser?.name || '',
           phone: driver.user?.phone || authUser?.phone || '',
           vehicleType: driver.vehicleType || 'bike',
           vehicleNumber: driver.vehicleNumber || '',
           licenseNumber: driver.licenseNumber || '',
+          licenseExpiryDate: driver.licenseExpiryDate || '',
           aadhaarNumber: driver.aadhaarNumber || '',
+          vehicleRegistrationExpiryDate: driver.vehicleRegistrationExpiryDate || '',
+          insuranceExpiryDate: driver.insuranceExpiryDate || '',
         });
 
         setPreviews({
@@ -103,7 +121,6 @@ export default function DriverProfilePage() {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     
-    // Proactively clear field error when typing
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
@@ -126,7 +143,7 @@ export default function DriverProfilePage() {
     setMessage({ type: '', text: '' });
     setErrors({});
 
-    // 4. Validate through Zod before submission execution
+    // Validate through Zod before submission execution
     const validationResult = driverProfileSchema.safeParse(formData);
 
     if (!validationResult.success) {
@@ -148,7 +165,13 @@ export default function DriverProfilePage() {
         setActiveTab('personal');
       } else if (formattedErrors.vehicleType || formattedErrors.vehicleNumber) {
         setActiveTab('vehicle');
-      } else if (formattedErrors.licenseNumber || formattedErrors.aadhaarNumber) {
+      } else if (
+        formattedErrors.licenseNumber || 
+        formattedErrors.licenseExpiryDate || 
+        formattedErrors.aadhaarNumber || 
+        formattedErrors.vehicleRegistrationExpiryDate || 
+        formattedErrors.insuranceExpiryDate
+      ) {
         setActiveTab('documents');
       }
       return;
@@ -276,10 +299,9 @@ export default function DriverProfilePage() {
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)} Information
-              {/* Optional UI visual feedback for unseen validation errors on other tabs */}
               {tab === 'personal' && (errors.name || errors.phone) && <span className="ml-1 text-red-500">•</span>}
               {tab === 'vehicle' && (errors.vehicleType || errors.vehicleNumber) && <span className="ml-1 text-red-500">•</span>}
-              {tab === 'documents' && (errors.licenseNumber || errors.aadhaarNumber) && <span className="ml-1 text-red-500">•</span>}
+              {tab === 'documents' && (errors.licenseNumber || errors.licenseExpiryDate || errors.aadhaarNumber || errors.vehicleRegistrationExpiryDate || errors.insuranceExpiryDate) && <span className="ml-1 text-red-500">•</span>}
             </button>
           ))}
         </div>
@@ -337,17 +359,22 @@ export default function DriverProfilePage() {
           {activeTab === 'documents' && (
             <div className="space-y-4">
               
-              {/* DRIVER LICENSE CONTAINER */}
+              {/* DRIVER LICENSE CONTAINER WITH EXPIRY DATE */}
               <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
                   <h4 className="font-semibold text-slate-900 text-sm">Driving License Document</h4>
                   <StatusBadge status={driverProfile?.licenseStatus} />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">License ID String</label>
                     <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.licenseNumber ? 'border-red-500' : 'border-slate-200'}`} />
                     {errors.licenseNumber && <p className="text-xs text-red-500 mt-1">{errors.licenseNumber}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">License Expiry Date</label>
+                    <input type="date" name="licenseExpiryDate" value={formData.licenseExpiryDate} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.licenseExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
+                    {errors.licenseExpiryDate && <p className="text-xs text-red-500 mt-1">{errors.licenseExpiryDate}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">Upload License Copy (JPG/PNG)</label>
@@ -385,11 +412,23 @@ export default function DriverProfilePage() {
                 )}
               </div>
 
-              {/* VEHICLE REGISTRATION (RC) */}
+              {/* VEHICLE REGISTRATION (RC) & INSURANCE WITH EXPIRY DATES */}
               <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
-                  <h4 className="font-semibold text-slate-900 text-sm">Vehicle Registration Certificate (RC Book)</h4>
+                  <h4 className="font-semibold text-slate-900 text-sm">Vehicle Registration & Insurance Compliance</h4>
                   <StatusBadge status={driverProfile?.vehicleDocumentStatus} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">RC Book Expiry Date</label>
+                    <input type="date" name="vehicleRegistrationExpiryDate" value={formData.vehicleRegistrationExpiryDate} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.vehicleRegistrationExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
+                    {errors.vehicleRegistrationExpiryDate && <p className="text-xs text-red-500 mt-1">{errors.vehicleRegistrationExpiryDate}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Insurance Expiry Date</label>
+                    <input type="date" name="insuranceExpiryDate" value={formData.insuranceExpiryDate} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.insuranceExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
+                    {errors.insuranceExpiryDate && <p className="text-xs text-red-500 mt-1">{errors.insuranceExpiryDate}</p>}
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-slate-700">Upload RC Document Copy</label>

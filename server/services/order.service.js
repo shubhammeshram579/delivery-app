@@ -21,7 +21,9 @@ const {
   AuthorizationError,
 } = require("../middleware/error.middleware");
 
+const {orderEscalationQueue} = require("../utils/orderWorker")
 const { sendNotification } = require("../utils/notifications");
+const {notifyAdmins} = require("../utils/adminNotification");
 
 // ─────────────────────────────────────────────
 // Constants
@@ -192,10 +194,150 @@ const findNearestDriver = async (pickupLat, pickupLng,orderType) => {
 // Create Order
 // ─────────────────────────────────────────────
 
+// const createOrder = async (customerId, orderData) => {
+//   const transaction = await sequelize.transaction();
+
+//   // console.log("orderData",orderData)
+
+//   try {
+//     const {
+//       pickupLat,
+//       pickupLng,
+//       dropLat,
+//       dropLng,
+//       packageWeight,
+//       paymentMethod,
+//       orderType
+//     } = orderData;
+
+    
+
+//     if (!orderType || !['passenger', 'delivery'].includes(orderType)) {
+//       throw new ValidationError(400, "Valid orderType ('passenger' or 'delivery') is required");
+//     }
+
+
+//     if (orderType === "delivery") {
+//       if (!orderData.receiverName) {
+//         throw new ValidationError(400, "Receiver name required for package delivery shipments");
+//       }
+//       if (!orderData.receiverPhone) {
+//         throw new ValidationError(400, "Receiver phone configuration identifier required");
+//       }
+//     } else if (orderType === "passenger") {
+//       if (!orderData.passengerCount || orderData.passengerCount < 1 || orderData.passengerCount > 4) {
+//         throw new ValidationError(400, "Passenger count must be configured between 1 and 4 persons");
+//       }
+//     }
+
+//     const routeInfo = await getRouteInfo(
+//       pickupLat,
+//       pickupLng,
+//       dropLat,
+//       dropLng,
+//     );
+
+//     const pricing = calculatePrice(routeInfo.distanceKm, packageWeight,orderType);
+
+//     const nearestDriver = await findNearestDriver(pickupLat, pickupLng,orderType);
+
+//     const order = await Order.create(
+//       {
+//         customerId,
+
+//         ...orderData,
+
+//         orderType,
+
+//         paymentMethod,
+
+//         distance: routeInfo.distanceKm,
+
+//         estimatedTime: routeInfo.durationMin,
+
+//         ...pricing,
+
+//         driverId: nearestDriver?.id || null,
+
+//         status: nearestDriver ? "accepted" : "pending",
+
+//         acceptedAt: nearestDriver ? new Date() : null,
+//       },
+//       {
+//         transaction,
+//       },
+//     );
+
+//     const paymentProviderMap = {
+//       online: "razorpay",
+//       cash: "cod",
+//     };
+
+//     await Payment.create(
+//       {
+//         orderId: order.id,
+//         customerId,
+//         amount: pricing.totalAmount,
+//         method: paymentProviderMap[paymentMethod],
+//         status:
+//           paymentMethod === "cash" ? "pending_cash_collection" : "pending",
+//       },
+
+//       {
+//         transaction,
+//       },
+//     );
+
+//     if (nearestDriver) {
+//       await nearestDriver.update(
+//         {
+//           isAvailable: false,
+//         },
+
+//         {
+//           transaction,
+//         },
+//       );
+//     }
+
+
+//      if(!nearestDriver){
+//       await notifyAdmins({
+//         title: "⚠️ Driver Not Found",
+//         body: `No driver available for Order #${order.orderNumber}`,
+//         type: "system",
+//         data: {
+//           orderId: order.id,
+//         },
+//       });
+//     }
+
+//     await transaction.commit();
+
+//     await notifyAdmins({
+//       title: "🛒 New Order",
+//       body: `Order #${order.orderNumber} placed`,
+//       type: "order",
+//       data: {
+//         orderId: order.id,
+//       },
+//     });
+
+//     await cacheDelByPattern(`orders:customer:${customerId}*`);
+
+//     await cacheDelByPattern(`orders:driver:*`);
+
+//     return order;
+//   } catch (error) {
+//     await transaction.rollback();
+
+//     throw error;
+//   }
+// };
+
+
 const createOrder = async (customerId, orderData) => {
   const transaction = await sequelize.transaction();
-
-  // console.log("orderData",orderData)
 
   try {
     const {
@@ -208,106 +350,86 @@ const createOrder = async (customerId, orderData) => {
       orderType
     } = orderData;
 
-    
-
     if (!orderType || !['passenger', 'delivery'].includes(orderType)) {
       throw new ValidationError(400, "Valid orderType ('passenger' or 'delivery') is required");
     }
 
-
     if (orderType === "delivery") {
-      if (!orderData.receiverName) {
-        throw new ValidationError(400, "Receiver name required for package delivery shipments");
-      }
-      if (!orderData.receiverPhone) {
-        throw new ValidationError(400, "Receiver phone configuration identifier required");
-      }
+      if (!orderData.receiverName) throw new ValidationError(400, "Receiver name required");
+      if (!orderData.receiverPhone) throw new ValidationError(400, "Receiver phone required");
     } else if (orderType === "passenger") {
       if (!orderData.passengerCount || orderData.passengerCount < 1 || orderData.passengerCount > 4) {
-        throw new ValidationError(400, "Passenger count must be configured between 1 and 4 persons");
+        throw new ValidationError(400, "Passenger count must be between 1 and 4");
       }
     }
 
-    const routeInfo = await getRouteInfo(
-      pickupLat,
-      pickupLng,
-      dropLat,
-      dropLng,
-    );
+    const routeInfo = await getRouteInfo(pickupLat, pickupLng, dropLat, dropLng);
+    const pricing = calculatePrice(routeInfo.distanceKm, packageWeight, orderType);
+    const nearestDriver = await findNearestDriver(pickupLat, pickupLng, orderType);
 
-    const pricing = calculatePrice(routeInfo.distanceKm, packageWeight,orderType);
-
-    const nearestDriver = await findNearestDriver(pickupLat, pickupLng,orderType);
-
+    // REAL-WORLD FIX: Initial status should be "pending" if awaiting driver acceptance. 
+    // "accepted" should only happen after the driver clicks 'Accept' on their app.
     const order = await Order.create(
       {
         customerId,
-
         ...orderData,
-
         orderType,
-
         paymentMethod,
-
         distance: routeInfo.distanceKm,
-
         estimatedTime: routeInfo.durationMin,
-
         ...pricing,
-
         driverId: nearestDriver?.id || null,
-
-        status: nearestDriver ? "accepted" : "pending",
-
-        acceptedAt: nearestDriver ? new Date() : null,
+        status: "pending", 
+        acceptedAt: null, // This changes when the driver actually confirms
       },
-      {
-        transaction,
-      },
+      { transaction }
     );
 
-    const paymentProviderMap = {
-      online: "razorpay",
-      cash: "cod",
-    };
-
+    const paymentProviderMap = { online: "razorpay", cash: "cod" };
     await Payment.create(
       {
         orderId: order.id,
         customerId,
         amount: pricing.totalAmount,
         method: paymentProviderMap[paymentMethod],
-        status:
-          paymentMethod === "cash" ? "pending_cash_collection" : "pending",
+        status: paymentMethod === "cash" ? "pending_cash_collection" : "pending",
       },
-
-      {
-        transaction,
-      },
+      { transaction }
     );
 
     if (nearestDriver) {
-      await nearestDriver.update(
-        {
-          isAvailable: false,
-        },
+      // Temporarily lock driver so other orders don't ping them while deciding
+      await nearestDriver.update({ isAvailable: false }, { transaction });
+    }
 
-        {
-          transaction,
-        },
-      );
+    // Critical Error: Immediate action needed by admin
+    if (!nearestDriver) {
+      await notifyAdmins({
+        title: "⚠️ Driver Not Found",
+        body: `No nearby drivers available for Order #${order.orderNumber}`,
+        type: "critical_system",
+        data: { orderId: order.id },
+      });
     }
 
     await transaction.commit();
 
-    await cacheDelByPattern(`orders:customer:${customerId}*`);
+    // REAL-WORLD UPDATE: Instead of spamming the admin immediately, 
+    // we schedule a background job to check on this order in exactly 5 minutes.
+    if (nearestDriver) {
+      await orderEscalationQueue.add(
+        "checkOrderAcceptance", 
+        { orderId: order.id }, 
+        { delay: 5 * 60 * 1000 } // 5 Minutes Delay in milliseconds
+      );
+    }
 
+    await cacheDelByPattern(`orders:customer:${customerId}*`);
     await cacheDelByPattern(`orders:driver:*`);
 
     return order;
   } catch (error) {
     await transaction.rollback();
-
     throw error;
   }
 };
@@ -562,6 +684,16 @@ const acceptOrder = async (orderId, driverUserId) => {
 
     await transaction.commit();
 
+    await notifyAdmins({
+      title: "🚚 Order Accepted",
+      body: `${driver.vehicleType} driver accepted Order #${order.orderNumber}`,
+      type: "order",
+      data: {
+        orderId,
+        driverId: driver.id,
+      },
+    });
+
     // Clear stale caching lists
     await cacheDelByPattern(`orders:*`);
 
@@ -749,6 +881,15 @@ const updateOrderStatus = async (
     // Commit
     await transaction.commit();
 
+    // await notifyAdmins({
+    //   title: "✅ Delivery Completed",
+    //   body: `Order #${order.orderNumber} delivered successfully`,
+    //   type: "order",
+    //   data: {
+    //     orderId,
+    //   },
+    // });
+
     // Clear Cache
     await cacheDelByPattern(`orders:customer:${order.customerId}*`);
     await cacheDelByPattern(`orders:driver:*`);
@@ -870,6 +1011,16 @@ const cancelOrder = async (orderId, userId, reason) => {
     // Commit
     await transaction.commit();
 
+    await notifyAdmins({
+      title: "❌ Order Cancelled",
+      body: `Customer cancelled Order #${order.orderNumber}`,
+      type: "order",
+      data: {
+        orderId,
+        reason,
+      },
+    });
+
     // Clear Cache
     await cacheDelByPattern(`orders:customer:${userId}*`);
 
@@ -990,6 +1141,18 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
 
     // Send dynamic notification texts
     const isPassenger = order.orderType === "passenger";
+
+    await notifyAdmins({
+      title: isPassenger ? "🚗 Trip Completed Successfully!" : "📦 Order Delivered!",
+       body: isPassenger 
+        ? `Your ride #${order.orderNumber} has arrived safely.`
+        : `Your order #${order.orderNumber} has been delivered.`,
+      type: "order",
+      data: {
+        orderId:order.id
+      },
+    });
+
     await sendNotification(order.customerId, {
       title: isPassenger ? "🚗 Trip Completed Successfully!" : "📦 Order Delivered!",
       body: isPassenger 

@@ -16,6 +16,8 @@ const {
   NotFoundError,
 } = require("../middleware/error.middleware");
 
+const {notifyAdmins} = require("../utils/adminNotification")
+
 // ─────────────────────────────────────────────
 // Generate Tokens
 // ─────────────────────────────────────────────
@@ -239,6 +241,20 @@ const register = async ({
 
     // Commit Transaction
     await transaction.commit();
+
+    
+    await notifyAdmins({
+      title: "👤 New Driver Registration",
+      body: `${user.name} has registered as a new driver and is waiting for verification.`,
+      type: "system",
+      data: {
+        userId: user.id,
+        driverId: driver.id,
+        driverName: user.name,
+        vehicleType,
+        vehicleNumber,
+      },
+    });
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
