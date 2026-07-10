@@ -713,7 +713,7 @@ useEffect(() => {
           </div>
 
           {/* Payment */}
-          <div className="card p-5">
+          {/* <div className="card p-5">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <IndianRupee className="h-4 w-4 text-gray-400" /> Payment
             </h3>
@@ -804,7 +804,89 @@ useEffect(() => {
                 )}
               </div>
             )}
-          </div>
+          </div> */}
+
+          {/* Payment Card Section */}
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <IndianRupee className="h-4 w-4 text-gray-400" /> Payment
+              </h3>
+              <div className="space-y-2 text-sm mb-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Base fare</span>
+                  <span>₹{order.basePrice}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">{isPassenger ? "Booking Charges" : "Delivery fee"}</span>
+                  <span>₹{order.deliveryFee}</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t border-gray-100 pt-2 mt-1">
+                  <span>Total</span>
+                  <span className="text-base">₹{order.totalAmount}</span>
+                </div>
+              </div>
+
+              {/* Active Payment Layout State Controls */}
+              {isCancelled ? (
+                <div>
+                  {order.paymentMethod === "cash" ? (
+                    <div className="p-3 bg-gray-50 rounded-xl text-sm text-gray-500 text-center">
+                      Order cancelled — No cash collection needed
+                    </div>
+                  ) : order.payment?.status === "refunded" ? (
+                    <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                      <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-700">Refund Successful</p>
+                        <p className="text-xs text-blue-600 mt-0.5">
+                          ₹{order.totalAmount} sent back to your original payment method.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                      <Clock className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-700">Refund Processing</p>
+                        <p className="text-xs text-amber-600 mt-0.5">
+                          Your payment is being processed back by our gateway.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : isPaid ? (
+                <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                  <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-green-700">
+                      {isCash ? "Cash Received" : "Payment Successful"}
+                    </p>
+                    <p className="text-xs text-green-600 mt-0.5">
+                      ₹{order.totalAmount} · {isCash ? "Cash on Delivery" : "Online"}
+                    </p>
+                  </div>
+                </div>
+              ) : payMethod === "cash" ? (
+                <div className="flex items-center gap-3 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                  <Banknote className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-orange-700">
+                      Pay ₹{order.totalAmount} to driver
+                    </p>
+                    <p className="text-xs text-orange-500 mt-0.5">Cash on Delivery option active.</p>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={handlePayOnline}
+                  disabled={payLoading}
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white font-medium py-2.5 rounded-xl transition-colors text-sm disabled:opacity-50"
+                >
+                  {payLoading ? "Processing..." : `Pay Online ₹${order.totalAmount}`}
+                </button>
+              )}
+            </div>
 
           <AIPriceExplainer order={order} />
 

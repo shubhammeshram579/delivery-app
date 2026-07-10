@@ -17,6 +17,7 @@ const { connectRedis } = require('./config/redis');
 const { initSocket } = require('./sockets');
 const { errorHandler,globalErrorHandler } = require('./middleware/error.middleware');
 const logger = require('./utils/logger');
+const {orderEscalationQueue} = require("./utils/orderWorker")
 
 // Route imports
 const authRoutes = require('./routes/auth.routes');

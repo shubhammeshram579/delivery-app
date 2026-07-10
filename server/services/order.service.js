@@ -25,6 +25,21 @@ const {orderEscalationQueue} = require("../utils/orderWorker")
 const { sendNotification } = require("../utils/notifications");
 const {notifyAdmins} = require("../utils/adminNotification");
 
+
+const {getRazorpay} = require("../services/payment.service")
+
+// let _razorpay = null;
+// const getRazorpay = () => {
+//   if (!_razorpay) {
+//     const Razorpay = require('razorpay');
+//     _razorpay = new Razorpay({
+//       key_id: process.env.RAZORPAY_KEY_ID,
+//       key_secret: process.env.RAZORPAY_KEY_SECRET,
+//     });
+//   }
+//   return _razorpay;
+// };
+
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
@@ -407,7 +422,7 @@ const createOrder = async (customerId, orderData) => {
       await notifyAdmins({
         title: "⚠️ Driver Not Found",
         body: `No nearby drivers available for Order #${order.orderNumber}`,
-        type: "critical_system",
+        type: "system",
         data: { orderId: order.id },
       });
     }
@@ -420,7 +435,7 @@ const createOrder = async (customerId, orderData) => {
       await orderEscalationQueue.add(
         "checkOrderAcceptance", 
         { orderId: order.id }, 
-        { delay: 5 * 60 * 1000 } // 5 Minutes Delay in milliseconds
+        { delay: 5 * 60 * 1000} // 5 Minutes Delay in milliseconds 1 * 60 * 1000
       );
     }
 
@@ -915,25 +930,144 @@ const updateOrderStatus = async (
 // Cancel Order
 // ─────────────────────────────────────────────
 
+// const cancelOrder = async (orderId, userId, reason) => {
+//   if (!reason) {
+//     throw new ValidationError("Cancellation reason required");
+//   }
+
+//   const transaction = await sequelize.transaction();
+
+//   try {
+//     // Find Order
+//     const order = await Order.findOne({
+//       where: {
+//         id: orderId,
+
+//         customerId: userId,
+//       },
+
+//       transaction,
+
+//       // lock: true,
+//       lock: transaction.LOCK.UPDATE,
+//     });
+
+//     if (!order) {
+//       throw new NotFoundError("Order");
+//     }
+
+//     // Status Validation
+//     if (!["pending", "accepted"].includes(order.status)) {
+//       throw new ValidationError("Order cannot be cancelled at this stage");
+//     }
+
+//     // Update Order
+//     await order.update(
+//       {
+//         status: "cancelled",
+
+//         cancelledAt: new Date(),
+
+//         cancelReason: reason,
+//       },
+
+//       {
+//         transaction,
+//       },
+//     );
+
+//     // Driver Handling
+//     if (order.driverId) {
+//       const driver = await Driver.findByPk(order.driverId, {
+//         transaction,
+//       });
+
+//       if (driver) {
+//         // Check Active Orders
+//         const activeOrders = await Order.count({
+//           where: {
+//             driverId: driver.id,
+
+//             status: {
+//               [Op.in]: ["accepted", "picked_up", "in_transit"],
+//             },
+//           },
+
+//           transaction,
+//         });
+
+//         if (activeOrders <= 1) {
+//           await driver.update(
+//             {
+//               isAvailable: true,
+//             },
+
+//             {
+//               transaction,
+//             },
+//           );
+//         }
+
+//         // Notify Driver
+//         await sendNotification(driver.userId, {
+//           title: "Order Cancelled",
+
+//           body: `Order #${order.orderNumber} was cancelled by customer.`,
+
+//           type: "order",
+
+//           data: {
+//             orderId,
+//           },
+//         });
+//       }
+//     }
+
+//     // Commit
+//     await transaction.commit();
+
+//     await notifyAdmins({
+//       title: "❌ Order Cancelled",
+//       body: `Customer cancelled Order #${order.orderNumber}`,
+//       type: "order",
+//       data: {
+//         orderId,
+//         reason,
+//       },
+//     });
+
+//     // Clear Cache
+//     await cacheDelByPattern(`orders:customer:${userId}*`);
+
+//     await cacheDelByPattern(`orders:driver:*`);
+
+//     return order;
+//   } catch (error) {
+//     await transaction.rollback();
+
+//     throw error;
+//   }
+// };
+
+
+
 const cancelOrder = async (orderId, userId, reason) => {
   if (!reason) {
     throw new ValidationError("Cancellation reason required");
   }
 
   const transaction = await sequelize.transaction();
+  
+  // Create placeholders to pass data out of the transaction block safely
+  let refundTriggered = false;
+  let refundId = null;
+  let orderData = null;
 
   try {
     // Find Order
     const order = await Order.findOne({
-      where: {
-        id: orderId,
-
-        customerId: userId,
-      },
-
+      where: { id: orderId, customerId: userId },
       transaction,
-
-      // lock: true,
       lock: transaction.LOCK.UPDATE,
     });
 
@@ -950,87 +1084,118 @@ const cancelOrder = async (orderId, userId, reason) => {
     await order.update(
       {
         status: "cancelled",
-
         cancelledAt: new Date(),
-
         cancelReason: reason,
       },
-
-      {
-        transaction,
-      },
+      { transaction }
     );
 
     // Driver Handling
     if (order.driverId) {
-      const driver = await Driver.findByPk(order.driverId, {
-        transaction,
-      });
-
+      const driver = await Driver.findByPk(order.driverId, { transaction });
       if (driver) {
-        // Check Active Orders
         const activeOrders = await Order.count({
           where: {
             driverId: driver.id,
-
-            status: {
-              [Op.in]: ["accepted", "picked_up", "in_transit"],
-            },
+            status: { [Op.in]: ["accepted", "picked_up", "in_transit"] },
           },
-
           transaction,
         });
 
         if (activeOrders <= 1) {
-          await driver.update(
-            {
-              isAvailable: true,
-            },
-
-            {
-              transaction,
-            },
-          );
+          await driver.update({ isAvailable: true }, { transaction });
         }
 
-        // Notify Driver
         await sendNotification(driver.userId, {
           title: "Order Cancelled",
-
           body: `Order #${order.orderNumber} was cancelled by customer.`,
-
           type: "order",
-
-          data: {
-            orderId,
-          },
+          data: { orderId },
         });
       }
     }
 
-    // Commit
+    // Automated Refund Check 
+    if (order.paymentMethod === 'online') {
+      const payment = await Payment.findOne({ 
+        where: { orderId, status: 'success' },
+        transaction 
+      });
+
+      if (payment) {
+        try {
+          const refund = await getRazorpay().payments.refund(payment.razorpayPaymentId, {
+            amount: Math.round(payment.amount * 100),
+            notes: { reason: 'Order cancelled by user', orderId },
+          });
+
+          await payment.update({ 
+            status: 'refunded', 
+            refundId: refund.id, 
+            refundedAt: new Date() 
+          }, { transaction });
+
+          refundTriggered = true;
+          refundId = refund.id;
+        } catch (refundError) {
+          console.error("Razorpay automatic refund failed:", refundError);
+        }
+      }
+    }
+
+    // Save basic order data to use outside the try block before committing
+    orderData = { id: order.id, orderNumber: order.orderNumber, customerId: order.customerId };
+
+    // Commit changes safely
     await transaction.commit();
+
+  } catch (error) {
+    // This will now ONLY run if an error happens BEFORE committing
+    await transaction.rollback();
+    throw error;
+  }
+
+  // ── SAFE ZONE: Run everything else after successful commit ──
+  try {
+    if (refundTriggered) {
+      await notifyAdmins({
+        title: "💰 Refund Initiated",
+        body: `Automatic refund initiated for Cancelled Order #${orderData.orderNumber}.`,
+        type: "payment",
+        data: { orderId: orderData.id, refundId }
+      });
+
+      await sendNotification(orderData.customerId, {
+        title: "Refund Initiated",
+        body: `Your refund for Order #${orderData.orderNumber} has been initiated automatically.`,
+        type: "payment",
+        data: { orderId }
+      });
+    }
 
     await notifyAdmins({
       title: "❌ Order Cancelled",
-      body: `Customer cancelled Order #${order.orderNumber}`,
+      body: `Customer cancelled Order #${orderData.orderNumber}`,
       type: "order",
-      data: {
-        orderId,
-        reason,
-      },
+      data: { orderId, reason },
     });
 
-    // Clear Cache
     await cacheDelByPattern(`orders:customer:${userId}*`);
-
     await cacheDelByPattern(`orders:driver:*`);
 
-    return order;
-  } catch (error) {
-    await transaction.rollback();
-
-    throw error;
+    // Fetch the updated state to return to your client
+    const updatedOrder = await Order.findByPk(orderId, { 
+      include: [{ model: Payment , as: 'payment' }] 
+    });
+    
+    return updatedOrder;
+  } catch (postCommitError) {
+    // Log failures from notifications, cache cleanups, or queries so your API doesn't crash 
+    // after the core database records have already updated successfully.
+    console.error("Post-commit background tasks failed:", postCommitError);
+    
+    // Fallback safely so the frontend still receives a response
+    return await Order.findByPk(orderId);
   }
 };
 
