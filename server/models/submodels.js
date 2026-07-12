@@ -31,7 +31,7 @@ const Notification = sequelize.define('Notification', {
   title:  { type: DataTypes.STRING, allowNull: false },
   body:   { type: DataTypes.TEXT, allowNull: false },
   type: {
-    type: DataTypes.ENUM('order', 'payment', 'system', 'chat'),
+    type: DataTypes.ENUM('order', 'payment', 'system', 'chat','support'),
     defaultValue: 'system',
   },
   data:   { type: DataTypes.JSONB, defaultValue: {} },

@@ -100,3 +100,20 @@ export const chatService = {
   markRead:       (orderId) => api.patch(`/chat/${orderId}/read`),
   getConversations: () => api.get('/chat/conversations/list'),
 };
+
+
+// supportService
+
+export const supportService = {
+  // ── Customer/Driver ─────────────────────────────────────
+  sendMessage: (data)              => api.post('/support/message', data),
+  createTicket: (data)              => api.post('/support/tickets', data),
+  getTickets: (params)              => api.get('/support/tickets', { params }),
+  getTicketById: (id)                => api.get(`/support/tickets/${id}`),
+  replyToTicket: (id, message)       => api.post(`/support/tickets/${id}/reply`, { message }),
+
+  // ── Admin ────────────────────────────────────────────────
+  assignTicket: (id)                 => api.patch(`/support/tickets/${id}/assign`),
+  updateTicket: (id, data)           => api.patch(`/support/tickets/${id}`, data),
+  getStats: ()                        => api.get('/support/stats'),
+};

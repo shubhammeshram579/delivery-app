@@ -25,11 +25,13 @@ import {
   Truck,
   User,
   ChevronRight,
+  LifeBuoy,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import NotificationDropdown from "../notificationDropdown";
 import { userService } from "../../services/index";
+import SupportWidget from '../support/SupportWidget';
 
 // ── Navigation configs ────────────────────────────────────
 
@@ -54,6 +56,7 @@ const NAV = {
     { href: "/admin/drivers", label: "Drivers", icon: Truck },
     { href: "/admin/orders", label: "Orders", icon: Package },
     // { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
+    { href: '/admin/support', label: 'Support', icon: LifeBuoy },
   ],
 };
 
@@ -333,6 +336,8 @@ export function DashboardLayout({ children, role, title }) {
         <Topbar title={title} />
         <main className="flex-1 p-6">{children}</main>
       </div>
+
+      {role !== 'admin' && <SupportWidget />}
     </div>
   );
 }

@@ -45,7 +45,7 @@ const TYPE_CONFIG = {
   },
 };
 
-const FILTERS = ["all", "unread", "order", "payment", "chat", "system"];
+const FILTERS = ["all", "unread", "order", "payment", "chat", "system","support"];
 
 export default function NotificationDropdown({
  open,

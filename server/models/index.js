@@ -56,6 +56,7 @@ const Location = require('./Location');
 const Earnings = require('./Earnings');
 const Notification = require('./Notification');
 const ChatMessage = require('./ChatMessage');
+const {SupportTicket,SupportMessage} = require('./Support')
 
 // User <-> Driver
 // User.hasOne(Driver, { foreignKey: 'userId', as: 'driverProfile', constraints: false });
@@ -107,7 +108,20 @@ Notification.belongsTo(User, { foreignKey: 'userId', constraints: false });
 Order.hasMany(ChatMessage, { foreignKey: 'orderId', as: 'messages', constraints: false });
 ChatMessage.belongsTo(Order, { foreignKey: 'orderId', constraints: false });
 
+
+//  other associations (after requiring SupportTicket/SupportMessage):
+ 
+SupportTicket.hasMany(SupportMessage, { foreignKey: 'ticketId', as: 'messages', constraints: false });
+SupportMessage.belongsTo(SupportTicket, { foreignKey: 'ticketId', constraints: false });
+
+User.hasMany(SupportTicket, { foreignKey: 'userId', as: 'supportTickets', constraints: false });
+SupportTicket.belongsTo(User, { foreignKey: 'userId', as: 'user', constraints: false });
+
+User.hasMany(SupportTicket, { foreignKey: 'assignedAdminId', as: 'assignedTickets', constraints: false });
+SupportTicket.belongsTo(User, { foreignKey: 'assignedAdminId', as: 'assignedAdmin', constraints: false });
+
+
 module.exports = {
   User, Driver, Order, Payment,
-  Location, Earnings, Notification, ChatMessage,
+  Location, Earnings, Notification, ChatMessage,SupportTicket,SupportMessage
 };

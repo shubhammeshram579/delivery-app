@@ -659,7 +659,7 @@ const getGeminiClient = () => {
 };
 
 // const MODEL_NAME = 'gemini-2.5-flash';
-const MODEL_NAME = 'gemini-3.5-flash';
+const MODEL_NAME = 'gemini-2.5-flash';
 
 // ── Tools Schema Map (Converted to Gemini/OpenAPI format) ─────
 const ALL_TOOLS = [

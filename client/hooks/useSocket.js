@@ -346,6 +346,29 @@ export const useSocket = () => {
     };
   }, []);
 
+// new support socked connection 
+  const joinSupportTicket = useCallback((ticketId) => {
+    if (!ticketId) return;
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('support:join', { ticketId });
+      console.log(`[Socket] Joined support ticket room: ${ticketId}`);
+    }
+  }, []);
+
+  const leaveSupportTicket = useCallback((ticketId) => {
+    if (!ticketId) return;
+    socketRef.current?.emit('support:leave', { ticketId });
+    console.log(`[Socket] Left support ticket room: ${ticketId}`);
+  }, []);
+
+  const sendSupportMessage = useCallback((ticketId, message, senderType = 'customer') => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('support:message', { ticketId, message, senderType });
+    } else {
+      console.warn('[Socket] Cannot send support message: socket disconnected');
+    }
+  }, []);
+
   return {
     trackOrder: joinOrderRoom,
     untrackOrder: leaveOrderRoom,
@@ -355,5 +378,9 @@ export const useSocket = () => {
     updateLocation,
     sendChatMessage,
     onChatMessage,
+
+    joinSupportTicket,
+    leaveSupportTicket,
+    sendSupportMessage
   };
 };

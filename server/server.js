@@ -30,6 +30,7 @@ const locationRoutes = require('./routes/location.routes');
 const uploadRoutes = require('./routes/upload.routes');
 const chatRoutes = require('./routes/chat.routes');
 const aiRoutes = require('./routes/ai.routes');
+const supportRoutes = require('./routes/support.routes');
 
 
 const app = express();
@@ -102,6 +103,7 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/support', supportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

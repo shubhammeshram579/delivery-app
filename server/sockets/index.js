@@ -1,7 +1,7 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
 const { Op } = require("sequelize");
-const { Driver, ChatMessage, Order, User } = require("../models");
+const { Driver, ChatMessage, Order, User ,SupportTicket,SupportMessage} = require("../models");
 const { cacheSet } = require("../config/redis");
 const { setIo } = require("../utils/notifications");
 const logger = require("../utils/logger");
@@ -218,122 +218,6 @@ const initSocket = (server) => {
       console.log(`❌ User ${socket.userId} left room ${roomName}`);
     });
 
-    // socket.on("chat:send", async (payload, callback) => {
-    //   try {
-    //     const { orderId, message, senderRole } = payload;
-
-    //     if (!message?.trim() || !orderId) {
-    //       callback?.({
-    //         success: false,
-    //         error: "Invalid data",
-    //       });
-
-    //       return;
-    //     }
-
-    //     // Ensure sender joined room
-    //     socket.join(`order:${orderId}`);
-
-    //     // Get order details
-
-    //     const order = await Order.findByPk(orderId, {
-    //       include: [
-    //         {
-    //           model: User,
-    //           as: "customer",
-    //           attributes: ["id", "name"],
-    //         },
-    //         {
-    //           model: Driver,
-    //           as: "driver",
-    //           include: [
-    //             {
-    //               model: User,
-    //               as: "user",
-    //               attributes: ["id", "name"],
-    //             },
-    //           ],
-    //         },
-    //       ],
-    //     });
-
-    //     if (!order) {
-    //       callback?.({
-    //         success: false,
-    //         error: "Order not found",
-    //       });
-
-    //       return;
-    //     }
-
-    //     // Save message
-    //     const msg = await ChatMessage.create({
-    //       orderId,
-    //       senderId: socket.userId,
-    //       senderRole: senderRole || "customer",
-    //       message: message.trim(),
-    //     });
-
-    //     const response = {
-    //       id: msg.id,
-    //       orderId,
-    //       senderId: socket.userId,
-    //       senderRole: msg.senderRole,
-    //       message: msg.message,
-    //       createdAt: msg.createdAt,
-    //     };
-
-    //     // Realtime emit to room
-    //     io.to(`order:${orderId}`).emit("chat:message", response);
-
-    //     /*
-    //      ==========================
-    //       SEND NOTIFICATION
-    //     ==========================
-    //     */
-
-    //     const { sendNotification } = require("../utils/notifications");
-
-    //     // CUSTOMER -> DRIVER
-    //     if (senderRole === "customer" && order.driver?.user?.id) {
-    //       await sendNotification(order.driver.user.id, {
-    //         title: "New Message",
-    //         body: `${order.customer.name}: ${message}`,
-    //         type: "chat",
-    //         data: {
-    //           orderId,
-    //           senderId: socket.userId,
-    //         },
-    //       });
-    //     }
-
-    //     // DRIVER -> CUSTOMER
-    //     if (senderRole === "driver" && order.customer?.id) {
-    //       await sendNotification(order.customer.id, {
-    //         title: "Driver Message",
-    //         body: `${order.driver?.user?.name || "Driver"}: ${message}`,
-    //         type: "chat",
-    //         data: {
-    //           orderId,
-    //           senderId: socket.userId,
-    //         },
-    //       });
-    //     }
-
-    //     callback?.({
-    //       success: true,
-    //       data: response,
-    //     });
-    //   } catch (err) {
-    //     logger.error("Chat send error:", err);
-
-    //     callback?.({
-    //       success: false,
-    //       error: "Chat failed",
-    //     });
-    //   }
-    // });
-
     // ===============================
     // CHAT READ RECEIPT
     // ===============================
@@ -458,7 +342,60 @@ const initSocket = (server) => {
       }
     });
 
-    // ===============================
+
+// ── Join a support ticket room (customer/driver/admin) ────
+socket.on('support:join', ({ ticketId }) => {
+  if (!ticketId) return;
+  socket.join(`support:${ticketId}`);
+  logger.info(`[Socket] ${socket.userId} joined support:${ticketId}`);
+});
+
+socket.on('support:leave', ({ ticketId }) => {
+  if (!ticketId) return;
+  socket.leave(`support:${ticketId}`);
+});
+
+// ── Admin joins the global "admin support" room to get live new-ticket alerts ──
+socket.on('support:admin:subscribe', () => {
+  socket.join('support:admins');
+});
+
+// ── Send message in a ticket (real-time, in addition to REST) ──
+socket.on('support:message', async ({ ticketId, message, senderType }) => {
+  try {
+    if (!ticketId || !message?.trim()) return;
+
+    const msg = await SupportMessage.create({
+      ticketId,
+      senderId: socket.userId,
+      senderType, // 'customer' | 'driver' | 'admin'
+      message: message.trim(),
+    });
+
+    const payload = {
+      id: msg.id,
+      ticketId,
+      senderId: socket.userId,
+      senderType,
+      message: msg.message,
+      createdAt: msg.createdAt,
+    };
+
+    // Broadcast to everyone in this ticket's room
+    io.to(`support:${ticketId}`).emit('support:message', payload);
+
+    // If admin sent it, update ticket status
+    if (senderType === 'admin') {
+      await SupportTicket.update({ status: 'waiting_on_user' }, { where: { id: ticketId } });
+    } else if (senderType !== 'admin') {
+      await SupportTicket.update({ status: 'in_progress' }, { where: { id: ticketId, status: 'waiting_on_user' } });
+    }
+  } catch (e) {
+    logger.error('[Socket] support:message error:', e.message);
+  }
+});
+
+ // ===============================
     // DISCONNECT
     // ===============================
     socket.on("disconnect", async () => {
