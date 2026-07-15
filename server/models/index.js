@@ -57,6 +57,7 @@ const Earnings = require('./Earnings');
 const Notification = require('./Notification');
 const ChatMessage = require('./ChatMessage');
 const {SupportTicket,SupportMessage} = require('./Support')
+const AssignmentHistory = require("./Matching")
 
 // User <-> Driver
 // User.hasOne(Driver, { foreignKey: 'userId', as: 'driverProfile', constraints: false });
@@ -121,7 +122,14 @@ User.hasMany(SupportTicket, { foreignKey: 'assignedAdminId', as: 'assignedTicket
 SupportTicket.belongsTo(User, { foreignKey: 'assignedAdminId', as: 'assignedAdmin', constraints: false });
 
 
+// matching driver 
+Order.hasMany(AssignmentHistory, { foreignKey: 'orderId', as: 'assignmentHistory', constraints: false });
+AssignmentHistory.belongsTo(Order, { foreignKey: 'orderId', constraints: false });
+
+Driver.hasMany(AssignmentHistory, { foreignKey: 'driverId', as: 'assignmentAttempts', constraints: false });
+AssignmentHistory.belongsTo(Driver, { foreignKey: 'driverId', as: 'driver', constraints: false });
+
+
 module.exports = {
-  User, Driver, Order, Payment,
-  Location, Earnings, Notification, ChatMessage,SupportTicket,SupportMessage
+  User, Driver, Order, Payment,Location, Earnings, Notification, ChatMessage,SupportTicket,SupportMessage,AssignmentHistory
 };

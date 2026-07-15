@@ -139,7 +139,7 @@ export default function NotificationDropdown({
           </div>
 
           {/* Filters */}
-          <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-2 mt-4 overflow-x-auto scrollbar-hide pb-2 ">
             {FILTERS.map((f) => (
               <button
                 key={f}

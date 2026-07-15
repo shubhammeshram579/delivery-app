@@ -30,6 +30,7 @@ import { useGeolocation } from "../../../../hooks";
 import { orderService, chatService } from "../../../../services/index";
 import toast from "react-hot-toast";
 import AISmartReply from '../../../../components/ai/AISmartReply';
+import DriverCancelModal from '../../../../components/DriverCancelModal';
 
 // ── Open Google Maps turn-by-turn navigation ───────────────
 const openGoogleMapsNavigation = (destLat, destLng) => {
@@ -164,6 +165,7 @@ export default function DriverOrderDetailPage() {
 
   // ── Status update ────────────────────────────────────────
   const [statusLoading, setStatusLoading] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   // Track previous order status to avoid re-running map transitions
   const prevStatusRef = useRef(null);
@@ -795,7 +797,7 @@ export default function DriverOrderDetailPage() {
 
             {/* Payment method badge */}
             <div
-              className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
+              className={`mt-3 flex items-center gap-2 px-3 py-2 mb-2 rounded-lg text-xs font-medium ${
                 isCash
                   ? "bg-orange-50 text-orange-700"
                   : "bg-blue-50 text-blue-700"
@@ -816,6 +818,20 @@ export default function DriverOrderDetailPage() {
                 </span>
               )}
             </div>
+
+
+            {['accepted', 'picked_up'].includes(order.status) && (
+              <button onClick={() => setShowCancelModal(true)} className="mt-4 w-full bg-red-100 hover:bg-red-200 text-red-600 font-medium py-2.5 rounded-xl transition-colors text-sm">
+                Cancel This Delivery
+              </button>
+            )}
+
+            <DriverCancelModal
+              orderId={order.id}
+              open={showCancelModal}
+              onClose={() => setShowCancelModal(false)}
+              onCancelled={() => dispatch(fetchOrderById(order.id))}
+            />
           </div>
 
           {/* ── Action Buttons (real-world ordered flow) ─── */}
@@ -1087,10 +1103,10 @@ export default function DriverOrderDetailPage() {
               </div>
 
               <AISmartReply
-  lastCustomerMessage={lastCustomerMsg}
-  orderStatus={order.status}
-  onUse={(text) => setChatInput(text)}
-/>
+                lastCustomerMessage={lastCustomerMsg}
+                orderStatus={order.status}
+                onUse={(text) => setChatInput(text)}
+              />
               <div className="flex gap-2">
                 <input
                   value={chatInput}

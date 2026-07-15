@@ -317,6 +317,14 @@ const Driver = sequelize.define('Driver', {
     type: DataTypes.DATE,
     defaultValue: null,
   },
+  acceptanceRate: {
+    type: DataTypes.FLOAT,
+    defaultValue: 100, // starts optimistic — new drivers aren't penalized
+  },
+  totalAssignmentsOffered: { type: DataTypes.INTEGER, defaultValue: 0 },
+  totalAssignmentsAccepted:{ type: DataTypes.INTEGER, defaultValue: 0 },
+  totalAssignmentsRejected:{ type: DataTypes.INTEGER, defaultValue: 0 },
+  currentActiveOrders:     { type: DataTypes.INTEGER, defaultValue: 0 }, // workload tracking
 }, {
   tableName: 'drivers',
   timestamps: true,

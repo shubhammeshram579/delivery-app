@@ -174,6 +174,34 @@ vehicleType: {
   type: DataTypes.STRING,
   defaultValue: null,
 },
+// driver cancel 
+  rejectedDriverIds: {
+    type: DataTypes.JSONB,
+    defaultValue: [],
+  },
+  // How many times we've attempted to (re)assign this order
+  assignmentAttempts: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  // Was this order EVER cancelled by a driver (for admin visibility)
+  wasDriverCancelled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  driverCancelReason: {
+    type: DataTypes.TEXT,
+    defaultValue: null,
+  },
+  // Currently pending assignment — driver has X seconds to respond
+  pendingDriverId: {
+    type: DataTypes.UUID,
+    defaultValue: null,
+  },
+  pendingAssignmentExpiresAt: {
+    type: DataTypes.DATE,
+    defaultValue: null,
+  },
 
 }, {
   tableName: 'orders',

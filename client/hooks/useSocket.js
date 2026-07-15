@@ -10,13 +10,15 @@
 // const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
 // let socketInstance = null;
-// // Queue rooms to join — if socket not ready yet, join on connect
 // const pendingRooms = new Set();
 
 // export const useSocket = () => {
-//   const dispatch    = useDispatch();
+//   const dispatch = useDispatch();
 //   const isAuthenticated = useSelector(s => s?.auth?.isAuthenticated ?? false);
-//   const socketRef   = useRef(null);
+//   const socketRef = useRef(null);
+
+//   // Maintain a stable set of secondary temporary page listeners
+//   const pageChatHandlersRef = useRef(new Set());
 
 //   useEffect(() => {
 //     if (!isAuthenticated) return;
@@ -38,10 +40,8 @@
 //       socketRef.current = socketInstance;
 //       const socket = socketInstance;
 
-//       // ── On connect: join any rooms that were requested before connection ──
 //       socket.on('connect', () => {
 //         console.log('[Socket] Connected:', socket.id);
-//         // Flush pending rooms
 //         pendingRooms.forEach(orderId => {
 //           socket.emit('order:track', { orderId });
 //           console.log('[Socket] Joined pending room:', orderId);
@@ -54,36 +54,34 @@
 
 //       socket.on('reconnect', () => {
 //         console.log('[Socket] Reconnected');
-//         // Re-join rooms after reconnect
 //         pendingRooms.forEach(orderId => {
 //           socket.emit('order:track', { orderId });
 //         });
 //       });
 
-//       // ── Driver location → Redux ────────────────────────────────
+//       // ── Order Tracking Streams ──
 //       socket.off('order:location').on('order:location', (data) => {
-//         console.log('[Socket] order:location received:', data);
 //         dispatch(updateDriverLocation(data));
 //       });
 
-//       // ── Order status update ────────────────────────────────────
 //       socket.off('order:status').on('order:status', (data) => {
 //         dispatch(updateOrderStatusRealtime(data));
 //       });
 
-//       // ── Notifications ──────────────────────────────────────────
+//       // ── System Push Notifications ──
 //       socket.off('notification').on('notification', (notification) => {
 //         dispatch(addNotification(notification));
 //         toast(notification.body, {
-//           icon: notification.type === 'payment' ? '💳'
-//               : notification.type === 'order'   ? '📦' : '🔔',
+//           icon: notification.type === 'payment' ? '💳' : notification.type === 'order' ? '📦' : '🔔',
 //           duration: 4000,
 //         });
 //       });
 
-//       // ── Chat (global handler — page-level handlers override) ───
-//       socket.off('chat:message').on('chat:message', (msg) => {
-//         // handled at page level via onChatMessage
+//       // ── CRITICAL FIX: Unified Central Message Broadcaster ──
+//       // This catches the message from the websocket and passes it down to the active page handler
+//       socket.off('message').on('message', (msg) => {
+//         console.log('[Socket Hook] Central message event captured:', msg);
+//         pageChatHandlersRef.current.forEach((handler) => handler(msg));
 //       });
 //     });
 
@@ -92,23 +90,23 @@
 //         socketRef.current.off('order:location');
 //         socketRef.current.off('order:status');
 //         socketRef.current.off('notification');
+//         socketRef.current.off('message'); // Clean up correctly
 //         socketRef.current.off('connect');
 //         socketRef.current.off('reconnect');
 //       }
 //     };
 //   }, [isAuthenticated, dispatch]);
 
-//   // ── Disconnect on logout ─────────────────────────────────────
 //   useEffect(() => {
 //     if (!isAuthenticated && socketInstance) {
 //       socketInstance.disconnect();
 //       socketInstance = null;
 //       socketRef.current = null;
 //       pendingRooms.clear();
+//       pageChatHandlersRef.current.clear();
 //     }
 //   }, [isAuthenticated]);
 
-//   // ── Emit helper ───────────────────────────────────────────────
 //   const emitIfConnected = useCallback((event, data) => {
 //     if (socketRef.current?.connected) {
 //       socketRef.current.emit(event, data);
@@ -117,17 +115,12 @@
 //     }
 //   }, []);
 
-//   // ── Join order tracking room ──────────────────────────────────
-//   // KEY FIX: store in pendingRooms so it gets joined on connect too
 //   const joinOrderRoom = useCallback((orderId) => {
 //     if (!orderId) return;
 //     pendingRooms.add(orderId);
 
 //     if (socketRef.current?.connected) {
 //       socketRef.current.emit('order:track', { orderId });
-//       console.log('[Socket] joinOrderRoom (immediate):', orderId);
-//     } else {
-//       console.log('[Socket] joinOrderRoom (queued for connect):', orderId);
 //     }
 //   }, []);
 
@@ -137,12 +130,10 @@
 //     socketRef.current?.emit('order:untrack', { orderId });
 //   }, []);
 
-//   // ── Driver helpers ────────────────────────────────────────────
 //   const goOnline = useCallback(() => {
 //     emitIfConnected('driver:online', {});
 //   }, [emitIfConnected]);
 
-//   // KEY FIX: always emit even if map is rendering
 //   const updateLocation = useCallback((lat, lng, orderId) => {
 //     if (!lat || !lng) return;
 //     if (socketRef.current?.connected) {
@@ -150,38 +141,83 @@
 //     }
 //   }, []);
 
-//   // ── Chat ──────────────────────────────────────────────────────
 //   const sendChatMessage = useCallback((orderId, message, senderRole) => {
 //     emitIfConnected('chat:send', { orderId, message, senderRole });
 //   }, [emitIfConnected]);
 
+//   // ── CRITICAL FIX: Smart Event Hook Handler Subscription ──
 //   const onChatMessage = useCallback((handler) => {
-//     if (!socketRef.current) return () => {};
-//     socketRef.current.off('chat:message', handler);
-//     socketRef.current.on('chat:message', handler);
-//     return () => socketRef.current?.off('chat:message', handler);
+//     // Add handler to our active set immediately, even if socket isn't ready yet
+//     pageChatHandlersRef.current.add(handler);
+
+//     // If the socket is ready, explicitly make sure the channel listener is listening
+//     if (socketRef.current) {
+//       socketRef.current.off('message', handler); 
+//       socketRef.current.on('message', handler);
+//     }
+
+//     // Clean up correctly when the component unmounts
+//     return () => {
+//       pageChatHandlersRef.current.delete(handler);
+//       if (socketRef.current) {
+//         socketRef.current.off('message', handler);
+//       }
+//     };
 //   }, []);
 
-//   // Legacy aliases
-//   const trackOrder   = joinOrderRoom;
-//   const untrackOrder = leaveOrderRoom;
+// // new support socked connection 
+//   const joinSupportTicket = useCallback((ticketId) => {
+//     if (!ticketId) return;
+//     if (socketRef.current?.connected) {
+//       socketRef.current.emit('support:join', { ticketId });
+//       console.log(`[Socket] Joined support ticket room: ${ticketId}`);
+//     }
+//   }, []);
+
+//   const leaveSupportTicket = useCallback((ticketId) => {
+//     if (!ticketId) return;
+//     socketRef.current?.emit('support:leave', { ticketId });
+//     console.log(`[Socket] Left support ticket room: ${ticketId}`);
+//   }, []);
+
+//   const sendSupportMessage = useCallback((ticketId, message, senderType = 'customer') => {
+//     if (socketRef.current?.connected) {
+//       socketRef.current.emit('support:message', { ticketId, message, senderType });
+//     } else {
+//       console.warn('[Socket] Cannot send support message: socket disconnected');
+//     }
+//   }, []);
+
+//   const markOfferSeen = useCallback((orderId) => {
+//   if (!orderId) return;
+
+//   if (socketRef.current?.connected) {
+//     socketRef.current.emit('order:offer:seen', { orderId });
+//   }
+// }, []);
 
 //   return {
-//     trackOrder,
-//     untrackOrder,
+//     socket: socketRef,
+//     trackOrder: joinOrderRoom,
+//     untrackOrder: leaveOrderRoom,
 //     joinOrderRoom,
 //     leaveOrderRoom,
 //     goOnline,
 //     updateLocation,
 //     sendChatMessage,
 //     onChatMessage,
+
+//     joinSupportTicket,
+//     leaveSupportTicket,
+//     sendSupportMessage,
+//     markOfferSeen
 //   };
 // };
 
 
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Cookies from 'js-cookie';
 import { updateDriverLocation, updateOrderStatusRealtime } from '../redux/slices/orderSlice';
@@ -197,6 +233,9 @@ export const useSocket = () => {
   const dispatch = useDispatch();
   const isAuthenticated = useSelector(s => s?.auth?.isAuthenticated ?? false);
   const socketRef = useRef(null);
+  
+  // ── NEW: Reactive connection state to solve the silent Ref desync ──
+  const [isConnected, setIsConnected] = useState(false);
 
   // Maintain a stable set of secondary temporary page listeners
   const pageChatHandlersRef = useRef(new Set());
@@ -221,12 +260,21 @@ export const useSocket = () => {
       socketRef.current = socketInstance;
       const socket = socketInstance;
 
+      // Initialize connected state
+      setIsConnected(socket.connected);
+
       socket.on('connect', () => {
         console.log('[Socket] Connected:', socket.id);
+        setIsConnected(true); // <-- Trigger re-render so downstream hooks bind listeners
         pendingRooms.forEach(orderId => {
           socket.emit('order:track', { orderId });
           console.log('[Socket] Joined pending room:', orderId);
         });
+      });
+
+      socket.on('disconnect', () => {
+        console.log('[Socket] Disconnected');
+        setIsConnected(false);
       });
 
       socket.on('connect_error', (err) => {
@@ -235,6 +283,7 @@ export const useSocket = () => {
 
       socket.on('reconnect', () => {
         console.log('[Socket] Reconnected');
+        setIsConnected(true);
         pendingRooms.forEach(orderId => {
           socket.emit('order:track', { orderId });
         });
@@ -259,7 +308,6 @@ export const useSocket = () => {
       });
 
       // ── CRITICAL FIX: Unified Central Message Broadcaster ──
-      // This catches the message from the websocket and passes it down to the active page handler
       socket.off('message').on('message', (msg) => {
         console.log('[Socket Hook] Central message event captured:', msg);
         pageChatHandlersRef.current.forEach((handler) => handler(msg));
@@ -271,8 +319,9 @@ export const useSocket = () => {
         socketRef.current.off('order:location');
         socketRef.current.off('order:status');
         socketRef.current.off('notification');
-        socketRef.current.off('message'); // Clean up correctly
+        socketRef.current.off('message');
         socketRef.current.off('connect');
+        socketRef.current.off('disconnect');
         socketRef.current.off('reconnect');
       }
     };
@@ -283,6 +332,7 @@ export const useSocket = () => {
       socketInstance.disconnect();
       socketInstance = null;
       socketRef.current = null;
+      setIsConnected(false);
       pendingRooms.clear();
       pageChatHandlersRef.current.clear();
     }
@@ -328,16 +378,13 @@ export const useSocket = () => {
 
   // ── CRITICAL FIX: Smart Event Hook Handler Subscription ──
   const onChatMessage = useCallback((handler) => {
-    // Add handler to our active set immediately, even if socket isn't ready yet
     pageChatHandlersRef.current.add(handler);
 
-    // If the socket is ready, explicitly make sure the channel listener is listening
     if (socketRef.current) {
       socketRef.current.off('message', handler); 
       socketRef.current.on('message', handler);
     }
 
-    // Clean up correctly when the component unmounts
     return () => {
       pageChatHandlersRef.current.delete(handler);
       if (socketRef.current) {
@@ -346,7 +393,7 @@ export const useSocket = () => {
     };
   }, []);
 
-// new support socked connection 
+  // New Support Socket Connection 
   const joinSupportTicket = useCallback((ticketId) => {
     if (!ticketId) return;
     if (socketRef.current?.connected) {
@@ -369,7 +416,16 @@ export const useSocket = () => {
     }
   }, []);
 
+  const markOfferSeen = useCallback((orderId) => {
+    if (!orderId) return;
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('order:offer:seen', { orderId });
+    }
+  }, []);
+
   return {
+    socket: socketRef,
+    isConnected, // <-- Exported so downstream hooks can reliably synchronize!
     trackOrder: joinOrderRoom,
     untrackOrder: leaveOrderRoom,
     joinOrderRoom,
@@ -378,9 +434,9 @@ export const useSocket = () => {
     updateLocation,
     sendChatMessage,
     onChatMessage,
-
     joinSupportTicket,
     leaveSupportTicket,
-    sendSupportMessage
+    sendSupportMessage,
+    markOfferSeen
   };
 };

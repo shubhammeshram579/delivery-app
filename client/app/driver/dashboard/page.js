@@ -12,6 +12,9 @@ import { Package, Wallet, Star, ToggleLeft, ToggleRight, MapPin } from 'lucide-r
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
+import { useOrderOffers } from '../../../hooks/useOrderOffers';
+import {OrderOfferModal} from '../../../components/OrderOfferModal';
+
 export default function DriverDashboard() {
  const { isAuthenticated, isInitialized } =  useRequireAuth('driver');
   const dispatch = useDispatch();
@@ -22,8 +25,10 @@ export default function DriverDashboard() {
   const [toggling, setToggling] = useState(false);
   const { goOnline, updateLocation } = useSocket();
   const { location } = useGeolocation(isAvailable); // watch when available
+  // Inside component
+const { activeOffer, timeLeft, accept, reject } = useOrderOffers();
 
-  console.log("profile",profile);
+ 
 
   // Send location updates every 5 seconds when on duty
   useEffect(() => {
@@ -86,6 +91,11 @@ export default function DriverDashboard() {
           {isAvailable ? 'Go Offline' : 'Go Online'}
         </button>
       </div>
+
+      {/* accept offer  */}
+      {activeOffer && (
+        <OrderOfferModal offer={activeOffer} timeLeft={timeLeft} onAccept={accept} onReject={reject} />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
