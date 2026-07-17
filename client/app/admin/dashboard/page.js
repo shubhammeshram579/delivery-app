@@ -11,8 +11,6 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 
-import AIAdminAssistant from '../../../components/ai/AIAdminAssistant';
-
 export default function AdminDashboard() {
   const { isAuthenticated, isInitialized } =  useRequireAuth('admin');
   const [stats, setStats] = useState(null);
@@ -107,11 +105,6 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
-
-      {/* Add below your existing charts grid */}
-<div className="mt-6">
-  <AIAdminAssistant />
-</div>
     </DashboardLayout>
   );
 }

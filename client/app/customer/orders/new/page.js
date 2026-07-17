@@ -583,6 +583,17 @@ export default function NewOrderPage() {
           <div className="lg:col-span-3 space-y-4 order-2 lg:order-1">
             <ErrorAlert message={serverError} />
 
+            <AIBookingAssistant
+              onConfirm={(data) => {
+                // Prefill your existing form fields
+                setValue("pickupAddress", data.pickup || "");
+                setValue("dropAddress", data.drop || "");
+                setValue("packageDescription", data.item || "");
+                setValue("packageWeight", data.weight_kg || 1);
+                // You can also auto-select vehicle if your form supports it
+              }}
+            />
+
             <form
               id="new-order-form"
               onSubmit={handleSubmit(onSubmit)}
@@ -1071,16 +1082,7 @@ export default function NewOrderPage() {
               )}
             </form>
 
-            <AIBookingAssistant
-              onConfirm={(data) => {
-                // Prefill your existing form fields
-                setValue("pickupAddress", data.pickup || "");
-                setValue("dropAddress", data.drop || "");
-                setValue("packageDescription", data.item || "");
-                setValue("packageWeight", data.weight_kg || 1);
-                // You can also auto-select vehicle if your form supports it
-              }}
-            />
+            
           </div>
 
           {/* ── Right column — Map + Estimate ─────────── */}

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Sparkles, Send, Package, MapPin, Weight, Truck, HelpCircle, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Send, Package, MapPin, Weight, Truck, HelpCircle, CheckCircle2 , X} from 'lucide-react';
 import { useAI } from '../../hooks/useAI';
 import { LoadingSpinner } from '../ui';
 import toast from 'react-hot-toast';
@@ -17,12 +17,17 @@ export default function AIBookingAssistant({ onConfirm }) {
   const { bookingAssistant, loading } = useAI();
   const [input,  setInput]  = useState('');
   const [result, setResult] = useState(null);
+  const [isShowAi , setIsShowAi] = useState(false)
 
   const EXAMPLES = [
     'Move a washing machine from Baner to Hinjewadi tomorrow morning',
     'Send 8 cartons of books from my office to home',
     'I need to send a fragile laptop urgently',
   ];
+
+  const handelAiAssin = () => {
+    setIsShowAi((prev) => !prev)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,14 +51,31 @@ export default function AIBookingAssistant({ onConfirm }) {
   };
 
   return (
+    <>
+
+    {!isShowAi && <div>
+      <div onClick={handelAiAssin} className="flex items-center gap-2 mb-4">
+        <div className="fixed bottom-28 sm:bottom-20 right-5 z-40 w-14 h-14 bg-primary-600 hover:bg-primary-700 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 text-white">
+          <Sparkles className="h-4 w-4 text-white" />Ai
+        </div>
+      </div>
+    </div>} 
+
+    {isShowAi &&
     <div className="card p-5 border-2 border-primary-100 bg-gradient-to-br from-primary-50/50 to-white">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
-        <div>
-          <h3 className="font-semibold text-gray-900 text-sm">AI Booking Assistant</h3>
-          <p className="text-xs text-gray-500">Describe your delivery in plain words</p>
+        <div className='flex items-center justify-between w-full'>
+          <div>
+            <h3 className="font-semibold text-gray-900 text-sm">AI Booking Assistant</h3>
+            <p className="text-xs text-gray-500">Describe your delivery in plain words</p>
+          </div>
+        
+          <button onClick={handelAiAssin} className="p-1.5 hover:bg-red-500/10 rounded-lg">
+              <X  className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -183,6 +205,7 @@ export default function AIBookingAssistant({ onConfirm }) {
           </div>
         </div>
       )}
-    </div>
+    </div>}
+    </>
   );
 }

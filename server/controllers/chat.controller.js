@@ -37,6 +37,14 @@ const getMessageHistory = async (req, res) => {
   try {
     const { orderId } = req.params;
 
+    // Guard check: ensures req.user is populated by your authentication middleware
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required. Please log in.'
+      });
+    }
+
     const messages = await chatService.getMessageHistory({
       orderId,
       user: req.user

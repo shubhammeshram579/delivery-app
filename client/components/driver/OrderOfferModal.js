@@ -63,7 +63,7 @@ export const OrderOfferModal = ({ offer, timeLeft, onAccept, onReject }) => {
           <div className="flex justify-between items-center bg-primary-50 p-3 rounded-lg border border-primary-600">
             <div>
               <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Estimated Earning</span>
-              <span className="text-2xl font-black text-black">${Number(offer.earning || 0).toFixed(2)}</span>
+              <span className="text-2xl font-black text-black">${Number(offer.deliveryFee || 0).toFixed(2)}</span>
             </div>
             <div className="text-right">
               <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Distance</span>
@@ -85,7 +85,7 @@ export const OrderOfferModal = ({ offer, timeLeft, onAccept, onReject }) => {
               <div className="absolute left-2 top-[6px] w-2 h-2 rounded-full bg-amber-500" />
               <div>
                 <h4 className="text-[10px] font-bold text-amber-500 uppercase tracking-wider">Dropoff</h4>
-                <p className="text-sm text-black line-clamp-2">{offer.dropoffAddress || 'Unknown location'}</p>
+                <p className="text-sm text-black line-clamp-2">{offer.dropAddress || 'Unknown location'}</p>
               </div>
             </div>
           </div>

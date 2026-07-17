@@ -30,7 +30,7 @@ import { useGeolocation } from "../../../../hooks";
 import { orderService, chatService } from "../../../../services/index";
 import toast from "react-hot-toast";
 import AISmartReply from '../../../../components/ai/AISmartReply';
-import DriverCancelModal from '../../../../components/DriverCancelModal';
+import DriverCancelModal from '../../../../components/driver/DriverCancelModal';
 
 // ── Open Google Maps turn-by-turn navigation ───────────────
 const openGoogleMapsNavigation = (destLat, destLng) => {

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
-import { Sparkles, Send, Bot, User } from 'lucide-react';
+import { Sparkles, Send, Bot, User,X } from 'lucide-react';
 import { useAI } from '../../hooks/useAI';
 
 const SUGGESTED_QUESTIONS = [
@@ -22,10 +22,19 @@ export default function AIAdminAssistant() {
     { role: 'assistant', text: "Hi! I'm your AI operations assistant. Ask me anything about your delivery business — revenue, orders, drivers, or delays." },
   ]);
 
-  console.log("messages",messages)
+  // console.log("messages",messages)
   
   const [input, setInput] = useState('');
   const endRef = useRef(null);
+
+  const [isAishow, setIsAishow] = useState(false);
+
+
+  const handelAiBtn = () => {
+    setIsAishow((prev) => !prev)
+  }
+
+  
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,15 +56,27 @@ export default function AIAdminAssistant() {
   };
 
   return (
-    <div className="card flex flex-col" style={{ height: '480px' }}>
+    <>
+    {!isAishow && <div className=' fixed bottom-5 right-5 z-40 w-12 h-12 bg-primary-600 hover:bg-primary-700 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105'>
+      <button onClick={handelAiBtn} className='flex items-center justify-center gap-2'>
+        <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center text-white">
+          <Sparkles className="h-4 w-4 text-white" /> Ai
+        </div>
+      </button>
+    </div>}
+   {isAishow && 
+    <div className="fixed bottom-5 right-5 z-40 w-[90vw] max-w-sm h-[560px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-in" >
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100">
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100 bg-primary-600">
         <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
-        <div>
-          <h3 className="font-semibold text-gray-900 text-sm">AI Operations Assistant</h3>
-          <p className="text-xs text-gray-400">Ask about revenue, orders, drivers, and delays</p>
+        <div className='flex items-center justify-between w-full '>
+          <div>
+          <h3 className="font-semibold text-gray-100 text-sm">AI Operations Assistant</h3>
+          <p className="text-xs text-gray-300">Ask about revenue, orders, drivers, and delays</p>
+          </div>
+          <div onClick={handelAiBtn} className='p-1.5 hover:bg-white/10 rounded-lg'><X className="h-4 w-4 text-gray-100" /></div>
         </div>
       </div>
 
@@ -127,6 +148,7 @@ export default function AIAdminAssistant() {
           <Send className="h-4 w-4" />
         </button>
       </div>
-    </div>
+    </div>}
+    </>
   );
 }

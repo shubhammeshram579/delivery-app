@@ -13,7 +13,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 import { useOrderOffers } from '../../../hooks/useOrderOffers';
-import {OrderOfferModal} from '../../../components/OrderOfferModal';
+import {OrderOfferModal} from '../../../components/driver/OrderOfferModal';
 
 export default function DriverDashboard() {
  const { isAuthenticated, isInitialized } =  useRequireAuth('driver');

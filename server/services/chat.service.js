@@ -84,6 +84,11 @@ const sendMessage = async ({ orderId, message, senderRole, user }) => {
 };
 
 const getMessageHistory = async ({ orderId, user }) => {
+  // Ensure we actually have a user object passed from the controller
+  if (!user || !user.id) {
+    throw new AuthorizationError('Unauthorized: Missing user credentials');
+  }
+
   const order = await Order.findByPk(orderId, {
     include: [
       { model: User, as: 'customer', attributes: ['id'] },
@@ -95,8 +100,11 @@ const getMessageHistory = async ({ orderId, user }) => {
     throw new NotFoundError('Order');
   }
 
-  const isCustomer = order.customerId === user.id;
-  const isDriver = order.driver && order.driver.userId === user.id;
+  // Robust check: matches order.customerId OR the nested customer.id association
+  const isCustomer = order.customerId === user.id || (order.customer && order.customer.id === user.id);
+  
+  // Robust check: matches the driver's userId
+  const isDriver = order.driver && (order.driver.userId === user.id);
 
   if (!isCustomer && !isDriver) {
     throw new AuthorizationError('Unauthorized');

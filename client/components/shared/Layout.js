@@ -32,6 +32,7 @@ import Image from "next/image";
 import NotificationDropdown from "../notificationDropdown";
 import { userService } from "../../services/index";
 import SupportWidget from '../support/SupportWidget';
+import AIAdminAssistant from "../ai/AIAdminAssistant";
 
 // ── Navigation configs ────────────────────────────────────
 
@@ -337,7 +338,8 @@ export function DashboardLayout({ children, role, title }) {
         <main className="flex-1 p-6">{children}</main>
       </div>
 
-      {role !== 'admin' && <SupportWidget />}
+      {/* {role !== 'admin' && <SupportWidget />} */}
+      {role == 'admin' ? <AIAdminAssistant /> : <SupportWidget />}
     </div>
   );
 }
