@@ -660,6 +660,15 @@ export default function DriverOrderDetailPage() {
     }
   };
 
+
+  const hadelShowProofModal = () => {
+  if (order?.paymentMethod === "cash" && !order?.cashCollected) {
+    toast.error("Cash collection is pending! Please collect cash first.");
+    return; 
+  }
+  setShowProofModal(true);
+  }
+
   // ─────────────────────────────────────────────────────────
   // Derived state
   // ─────────────────────────────────────────────────────────
@@ -987,7 +996,7 @@ export default function DriverOrderDetailPage() {
                   </button> */}
 
                   <button
-                    onClick={() => setShowProofModal(true)}
+                    onClick={hadelShowProofModal}
                     className="w-full py-3 text-base bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
                   >
                     <Camera className="h-4 w-4" />

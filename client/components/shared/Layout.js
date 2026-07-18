@@ -31,7 +31,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import NotificationDropdown from "../notificationDropdown";
 import { userService } from "../../services/index";
-import SupportWidget from '../support/SupportWidget';
+import SupportWidget from "../support/SupportWidget";
 import AIAdminAssistant from "../ai/AIAdminAssistant";
 
 // ── Navigation configs ────────────────────────────────────
@@ -41,7 +41,7 @@ const NAV = {
     { href: "/customer/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/customer/orders", label: "My Orders", icon: Package },
     { href: "/customer/orders/new", label: "New Order", icon: MapPin },
-    // { href: "/customer/chat", label: "Messages", icon: MessageSquare },
+    { href: "/customer/support", label: "Support", icon: LifeBuoy },
     { href: "/customer/profile", label: "Profile", icon: User },
   ],
   driver: [
@@ -49,6 +49,7 @@ const NAV = {
     { href: "/driver/orders", label: "Available Orders", icon: Package },
     { href: "/driver/earnings", label: "Earnings", icon: Wallet },
     // { href: "/driver/chat", label: "Messages", icon: MessageSquare },
+    { href: "/driver/support", label: "Support", icon: LifeBuoy },
     { href: "/driver/profile", label: "Profile", icon: User },
   ],
   admin: [
@@ -57,7 +58,7 @@ const NAV = {
     { href: "/admin/drivers", label: "Drivers", icon: Truck },
     { href: "/admin/orders", label: "Orders", icon: Package },
     // { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
-    { href: '/admin/support', label: 'Support', icon: LifeBuoy },
+    { href: "/admin/support", label: "Support", icon: LifeBuoy },
   ],
 };
 
@@ -274,17 +275,66 @@ export function Topbar({ title }) {
 
   // console.log("user", user);
 
-  const handelOrderview = (notification) => {
-    // mark read
+  const handleNotificationNavigation = (notification) => {
+    // 1. Instantly mark as read
     handleMarkRead(notification.id);
 
-    // OR use router.push if using useRouter
-    if (user.role == "driver") {
-      router.push(`/driver/orders/${notification?.data?.orderId}`);
-    } else if (user.role == "customer") {
-      router.push(`/customer/orders/${notification?.data?.orderId}`);
-    } else {
-      router.push(`/admin/orders/${notification?.data?.orderId}`);
+    const role = user?.role; // "customer", "driver", or "admin"
+    const type = notification?.type?.toLowerCase(); // "order", "payment", "chat", "system", "support"
+    const data = notification?.data || {};
+
+    // 2. Route dynamically based on Notification Type & User Role
+    switch (type) {
+      // --- SUPPORT NOTIFICATIONS ---
+      // Everyone goes to their respective role-based support portal
+      case "support":
+        router.push(`/${role}/support`);
+        break;
+
+      // --- SYSTEM NOTIFICATIONS ---
+      // Admins go to their system dashboard, customers/drivers stay on theirs
+      case "system":
+        if (role === "admin") {
+          router.push("/admin/drivers"); // or a specific admin logs route if you build one later
+        } else {
+          router.push(`/${role}/dashboard`);
+        }
+        break;
+
+      // --- CHAT NOTIFICATIONS ---
+      // If you have a separate chat page, route there.
+      // Otherwise, since order chats live inside the order page, fall through to the order routes below.
+      case "chat":
+        if (data.orderId) {
+          if (role === "admin") {
+            router.push(`/admin/orders`); // Admins view the main order tracking board
+          } else {
+            router.push(`/${role}/orders/${data.orderId}`); // Drivers/Customers see specific chat context
+          }
+        } else {
+          router.push(`/${role}/dashboard`);
+        }
+        break;
+
+      // --- ORDER & PAYMENT NOTIFICATIONS ---
+      // Routed directly to the active order workflows
+      case "order":
+      case "payment":
+        if (role === "driver" && data.orderId) {
+          router.push(`/driver/orders/${data.orderId}`);
+        } else if (role === "customer" && data.orderId) {
+          router.push(`/customer/orders/${data.orderId}`);
+        } else if (role === "admin") {
+          router.push(`/admin/orders`);
+        } else {
+          router.push(`/${role}/orders`); // Fallback if no specific orderId is passed
+        }
+        break;
+
+      // --- FALLBACK ---
+      default:
+        router.push(`/${role}/dashboard`);
+        break;
     }
   };
 
@@ -320,7 +370,7 @@ export function Topbar({ title }) {
             onMarkAllRead={handleMarkAllRead}
             onDelete={handleDeleteNotification}
             // OPEN BUTTON
-            onOpenNotification={handelOrderview}
+            onOpenNotification={handleNotificationNavigation}
           />
         </div>
       </div>
@@ -339,7 +389,7 @@ export function DashboardLayout({ children, role, title }) {
       </div>
 
       {/* {role !== 'admin' && <SupportWidget />} */}
-      {role == 'admin' ? <AIAdminAssistant /> : <SupportWidget />}
+      {role == "admin" ? <AIAdminAssistant /> : <SupportWidget />}
     </div>
   );
 }

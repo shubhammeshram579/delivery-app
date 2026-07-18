@@ -1249,6 +1249,10 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       throw new ValidationError("Receiver OTP verification required first");
     }
 
+    if(order.paymentMethod == "cash" && !order.cashCollected){
+      throw new ValidationError("Cash collection must be completed first before uploading proof");
+    }
+
     const existingEarning = await Earnings.findOne({
       where: { orderId: order.id },
       transaction,
@@ -1334,6 +1338,7 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
   }
 };
 
+
 const markCashCollected = async (orderId, driverUserId) => {
   const transaction = await sequelize.transaction();
 
@@ -1352,6 +1357,7 @@ const markCashCollected = async (orderId, driverUserId) => {
       throw new ValidationError("Cash already marked as collected");
     }
 
+    // 1. Update the order status
     await order.update(
       {
         cashCollected: true,
@@ -1360,6 +1366,7 @@ const markCashCollected = async (orderId, driverUserId) => {
       { transaction },
     );
 
+    // 2. Update the payment records
     await Payment.update(
       {
         status: "success",
@@ -1374,6 +1381,19 @@ const markCashCollected = async (orderId, driverUserId) => {
 
     await transaction.commit();
     await cacheDelByPattern(`orders:*`);
+
+    // 3. Notify Admins for Cash Auditing (Triggered after successful commit)
+    // Using type: "payment" so it hits the payment filters in your system
+    await notifyAdmins({
+      title: "💰 Cash Collected by Driver",
+      body: `Driver collected cash for order #${order.orderNumber}. Amount needs reconciliation.`,
+      type: "payment", 
+      data: {
+        orderId: order.id,
+        amount: order.totalAmount, // Helps the admin see the money volume immediately
+        driverId: driverUserId
+      },
+    });
 
     return true;
   } catch (error) {
