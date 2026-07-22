@@ -65,9 +65,9 @@ export default function AIAdminAssistant() {
       </button>
     </div>}
    {isAishow && 
-    <div className="fixed bottom-5 right-5 z-40 w-[90vw] max-w-sm h-[560px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-in" >
+    <div className="card fixed bottom-5 right-5 z-40 w-[90vw] max-w-sm h-[560px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-in" >
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100 bg-primary-600">
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-gray-100 bg-primary-600 dark:bg-primary-600/50 dark:border-gray-700">
         <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
@@ -132,7 +132,7 @@ export default function AIAdminAssistant() {
       )}
 
       {/* Input */}
-      <div className="p-4 border-t border-gray-100 flex gap-2">
+      <div className="p-4 border-t dark:border-gray-600 border-gray-100 flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}

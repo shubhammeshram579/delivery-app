@@ -136,7 +136,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 dark:from-primary-700 dark:via-gray-900  dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
@@ -144,11 +144,11 @@ export default function RegisterPage() {
             <Truck className="h-5 w-5 text-white" />
           </div>
 
-          <span className="text-2xl font-bold text-gray-900">DeliverPro</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-gray-300">DeliverPro</span>
         </div>
 
         <div className="card p-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-300 mb-1">
             Create account
           </h2>
 
@@ -159,7 +159,7 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
             {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                 Full Name
               </label>
 
@@ -178,7 +178,7 @@ export default function RegisterPage() {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                 Email
               </label>
 
@@ -198,7 +198,7 @@ export default function RegisterPage() {
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                 Phone Number
               </label>
 
@@ -217,7 +217,7 @@ export default function RegisterPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                 Password
               </label>
 
@@ -251,7 +251,7 @@ export default function RegisterPage() {
 
             {/* Role */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                 I am a
               </label>
 
@@ -259,7 +259,7 @@ export default function RegisterPage() {
                 {["customer", "driver"].map((r) => (
                   <label
                     key={r}
-                    className="relative flex items-center justify-center gap-2 p-3 border-2 rounded-lg cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 border-gray-200 transition-all"
+                    className="relative flex items-center justify-center gap-2 p-3 border-2 rounded-lg cursor-pointer has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 dark:has-[:checked]:bg-primary-600/30 border-gray-200 dark:border-gray-700 transition-all"
                   >
                     <input
                       type="radio"
@@ -268,7 +268,7 @@ export default function RegisterPage() {
                       {...register("role")}
                     />
 
-                    <span className="text-sm font-medium capitalize text-gray-700">
+                    <span className="text-sm font-medium capitalize text-gray-700 dark:text-gray-400">
                       {r}
                     </span>
                   </label>
@@ -280,7 +280,7 @@ export default function RegisterPage() {
             {selectedRole === "driver" && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                     Vehicle Type
                   </label>
 
@@ -309,7 +309,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                     Vehicle Number
                   </label>
 
@@ -327,7 +327,7 @@ export default function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                     License Number
                   </label>
 

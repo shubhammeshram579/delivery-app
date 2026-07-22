@@ -28,7 +28,7 @@ export default function AIFraudCheck({ driverId }) {
     <>
       <button
         onClick={runCheck}
-        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg font-medium transition-colors"
+        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 dark:bg-primary-600/20 bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg font-medium transition-colors"
       >
         <ShieldAlert className="h-3.5 w-3.5" /> AI Fraud Check
       </button>

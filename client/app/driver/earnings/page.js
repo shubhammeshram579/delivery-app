@@ -30,17 +30,17 @@ export default function EarningsPage() {
       </div>
 
       <div className="card">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-800">Recent Earnings</h3>
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="font-semibold text-gray-800 dark:text-gray-300">Recent Earnings</h3>
         </div>
         {(!data?.recent || data.recent.length === 0) ? (
           <EmptyState title="No earnings yet" description="Complete deliveries to see your earnings here." />
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 dark:divide-gray-800 ">
             {data.recent.map((e) => (
               <div key={e.id} className="flex items-center justify-between px-5 py-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Delivery Earning</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-300">Delivery Earning</p>
                   <p className="text-xs text-gray-400">{format(new Date(e.createdAt), 'dd MMM yyyy')}</p>
                 </div>
                 <div className="text-right">

@@ -11,5 +11,6 @@ router.get('/users', ctrl.getAllUsers);
 router.patch('/users/:id/toggle', ctrl.toggleUserStatus);
 router.patch('/drivers/:id/verify', ctrl.verifyDriver);
 router.get('/orders', ctrl.getAllOrders);
+router.get('/orders/exportcsv', ctrl.exportOrdersCsv);
 
 module.exports = router;

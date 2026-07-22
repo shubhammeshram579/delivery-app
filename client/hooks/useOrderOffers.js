@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSocket } from "./useSocket"; // Adjust path to useSocket if needed
-import api from "../services/api"; // API service instance
+// import api from "../services/api"; // API service instance
+import {matchingService} from "../services/index"; // API service instance
 import toast from "react-hot-toast";
 
 export const useOrderOffers = () => {
@@ -23,7 +24,9 @@ export const useOrderOffers = () => {
   const accept = useCallback(async () => {
     if (!activeOffer) return false;
     try {
-      await api.post(`/matching/orders/${activeOffer.orderId}/offer/accept`);
+      // await api.post(`/matching/orders/${activeOffer.orderId}/offer/accept`);
+
+      await matchingService.acceptOffer(activeOffer.orderId);
 
       // Connect the driver to the active tracking rooms instantly on success
       if (trackOrder) {
@@ -49,7 +52,10 @@ export const useOrderOffers = () => {
   const reject = useCallback(async () => {
     if (!activeOffer) return;
     try {
-      await api.post(`/matching/orders/${activeOffer.orderId}/offer/reject`);
+      // await api.post(`/matching/orders/${activeOffer.orderId}/offer/reject`);
+
+      await matchingService.rejectOffer(activeOffer.orderId);
+
     } catch {
       // Silent — offer expiring naturally or quiet manual skip is fine
     } finally {

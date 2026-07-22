@@ -90,6 +90,12 @@ export const adminService = {
   verifyDriver:        (id, payload) => api.patch(`/admin/drivers/${id}/verify`, payload),
   // verifyDriver:       (id)     => api.patch(`/admin/drivers/${id}/verify`),
   getOrders:          (params) => api.get('/admin/orders', { params }),
+  
+ exportOrdersCsv: (params) => 
+  api.get('/admin/orders/exportcsv', { 
+    params,
+    responseType: 'blob',
+  }),
 };
 
 
@@ -117,3 +123,9 @@ export const supportService = {
   updateTicket: (id, data)           => api.patch(`/support/tickets/${id}`, data),
   getStats: ()                        => api.get('/support/stats'),
 };
+
+
+export const matchingService = {
+  acceptOffer: (orderId) => api.post(`/matching/orders/${orderId}/offer/accept`),
+  rejectOffer: (orderId) => api.post(`/matching/orders/${orderId}/offer/reject`)
+}

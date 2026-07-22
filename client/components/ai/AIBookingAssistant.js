@@ -55,14 +55,14 @@ export default function AIBookingAssistant({ onConfirm }) {
 
     {!isShowAi && <div>
       <div onClick={handelAiAssin} className="flex items-center gap-2 mb-4">
-        <div className="fixed bottom-28 sm:bottom-20 right-5 z-40 w-14 h-14 bg-primary-600 hover:bg-primary-700 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 text-white">
+        <div className="fixed bottom-28 sm:bottom-20 right-5 z-40 w-12 h-12 bg-primary-600 hover:bg-primary-700 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 text-white">
           <Sparkles className="h-4 w-4 text-white" />Ai
         </div>
       </div>
     </div>} 
 
     {isShowAi &&
-    <div className="card p-5 border-2 border-primary-100 bg-gradient-to-br from-primary-50/50 to-white">
+    <div className="card p-5 border-2 border-primary-100 bg-gradient-to-br from-primary-50/50 to-white dark:from-gray-900/50 dark:to-gray-900">
       <div className="flex items-center gap-2 mb-4">
         <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
           <Sparkles className="h-4 w-4 text-white" />
@@ -109,7 +109,7 @@ export default function AIBookingAssistant({ onConfirm }) {
                 <button
                   key={ex}
                   onClick={() => setInput(ex)}
-                  className="text-xs px-2.5 py-1 bg-white border border-gray-200 rounded-full text-gray-600 hover:border-primary-300 hover:text-primary-600 transition-colors"
+                  className="text-xs px-2.5 py-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 dark:text-gray-400 rounded-full text-gray-600 hover:border-primary-300 hover:text-primary-600 transition-colors"
                 >
                   {ex.slice(0, 30)}...
                 </button>

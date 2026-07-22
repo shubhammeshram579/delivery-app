@@ -175,28 +175,28 @@ export default function AdminSupportPage() {
                 <p className="text-sm text-gray-400">No tickets found</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-50 dark:divide-gray-800">
                 {tickets.map((t) => {
                   const p = PRIORITY_STYLE[t.priority] || PRIORITY_STYLE.normal;
                   return (
                     <button
                       key={t.id}
                       onClick={() => setSelectedId(t.id)}
-                      className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+                      className="w-full flex items-center gap-4 px-5 py-4 dark:hover:bg-gray-800 hover:bg-gray-50 transition-colors text-left"
                     >
                       <div
                         className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${p.dot}`}
                       />
-                      <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-semibold flex-shrink-0">
+                      <div className="w-9 h-9 dark:bg-primary-600/20 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-semibold flex-shrink-0">
                         {t.user?.name?.[0] || "?"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-900 truncate">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-400 truncate">
                             {t.subject}
                           </p>
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase ${p.bg} ${p.text}`}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold dark:bg-primary-600/20 uppercase ${p.bg} ${p.text}`}
                           >
                             {t.priority}
                           </span>
@@ -210,7 +210,7 @@ export default function AdminSupportPage() {
                             : ""}
                         </p>
                       </div>
-                      <span className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600 flex-shrink-0">
+                      <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-primary-600/20 dark:text-gray-400 rounded-full text-gray-600 flex-shrink-0">
                         {STATUS_LABEL[t.status] || t.status}
                       </span>
                       <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
@@ -231,12 +231,12 @@ export default function AdminSupportPage() {
 // ==========================================
 function StatCard({ label, value, color }) {
   const colors = {
-    blue: "bg-blue-50 text-blue-700",
-    purple: "bg-purple-50 text-purple-700",
-    yellow: "bg-yellow-50 text-yellow-700",
-    red: "bg-red-50 text-red-700",
-    orange: "bg-orange-50 text-orange-700",
-    green: "bg-green-50 text-green-700",
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-700/20",
+    purple: "bg-purple-50 text-purple-700 dark:bg-purple-700/20",
+    yellow: "bg-yellow-50 text-yellow-700 dark:bg-yellow-700/20",
+    red: "bg-red-50 text-red-700 dark:bg-red-700/20",
+    orange: "bg-orange-50 text-orange-700 dark:bg-orange-700/20",
+    green: "bg-green-50 text-green-700 dark:bg-green-700/20",
   };
   return (
     <div className={`rounded-xl p-3 ${colors[color]}`}>
@@ -381,15 +381,15 @@ function TicketDetail({ ticketId, onBack }) {
         className="lg:col-span-2 card flex flex-col"
         style={{ height: "600px" }}
       >
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-700">
           <button
             onClick={onBack}
-            className="p-1.5 hover:bg-gray-100 rounded-lg"
+            className="p-1.5 hover:bg-gray-100 rounded-lg "
           >
             <ArrowLeft className="h-4 w-4 text-gray-500" />
           </button>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-gray-900">
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-300">
               {ticket.subject}
             </p>
             <p className="text-xs text-gray-400">#{ticket.ticketNumber}</p>
@@ -401,9 +401,9 @@ function TicketDetail({ ticketId, onBack }) {
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-gray-50 dark:bg-gray-900">
           {ticket.aiSummary && (
-            <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+            <div className="p-3 bg-blue-50  border border-blue-100 rounded-lg text-xs text-blue-700">
               <p className="font-semibold mb-1">AI Summary</p>
               {ticket.aiSummary}
             </div>
@@ -434,7 +434,7 @@ function TicketDetail({ ticketId, onBack }) {
           <div ref={endRef} />
         </div>
 
-        <div className="p-4 border-t border-gray-100 flex gap-2">
+        <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -456,7 +456,7 @@ function TicketDetail({ ticketId, onBack }) {
 
       <div className="space-y-4">
         <div className="card p-5">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-300 mb-3">
             Ticket Info
           </h3>
           <div className="space-y-3 text-sm">
@@ -496,7 +496,7 @@ function TicketDetail({ ticketId, onBack }) {
         </div>
 
         <div className="card p-5">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-300 mb-3">
             Update Priority
           </h3>
           <div className="grid grid-cols-2 gap-2">
@@ -504,7 +504,7 @@ function TicketDetail({ ticketId, onBack }) {
               <button
                 key={pr}
                 onClick={() => updatePriority(pr)}
-                className={`text-xs py-2 rounded-lg font-medium capitalize border-2 transition-colors ${
+                className={`text-xs py-2 rounded-lg font-medium capitalize dark:border-gray-700 border-2 transition-colors ${
                   ticket.priority === pr
                     ? `${PRIORITY_STYLE[pr].bg} ${PRIORITY_STYLE[pr].text} border-current`
                     : "border-gray-200 text-gray-500"
@@ -517,7 +517,7 @@ function TicketDetail({ ticketId, onBack }) {
         </div>
 
         <div className="card p-5">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-300 mb-3">
             Update Status
           </h3>
           <div className="space-y-2">

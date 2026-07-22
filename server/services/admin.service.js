@@ -1,22 +1,34 @@
-const { User, Driver, Order, Payment } = require('../models');
-const { Op, fn, col } = require('sequelize');
-const { cacheSet, cacheGet } = require('../config/redis');
-const { NotFoundError, ValidationError } = require('../middleware/error.middleware');
+const { User, Driver, Order, Payment } = require("../models");
+const { Op, fn, col } = require("sequelize");
+const { cacheSet, cacheGet } = require("../config/redis");
+const {
+  NotFoundError,
+  ValidationError,
+} = require("../middleware/error.middleware");
+const { Parser } = require("json2csv"); // install using: npm install json2csv
 
 const getDashboardStats = async () => {
-  const cacheKey = 'admin:dashboard';
+  const cacheKey = "admin:dashboard";
   const cached = await cacheGet(cacheKey);
   if (cached) return cached;
 
   const [
-    totalUsers, totalDrivers, totalOrders,
-    activeOrders, totalRevenue, pendingDriverVerification,
+    totalUsers,
+    totalDrivers,
+    totalOrders,
+    activeOrders,
+    totalRevenue,
+    pendingDriverVerification,
   ] = await Promise.all([
-    User.count({ where: { role: 'customer' } }),
+    User.count({ where: { role: "customer" } }),
     Driver.count(),
     Order.count(),
-    Order.count({ where: { status: { [Op.in]: ['pending', 'accepted', 'picked_up', 'in_transit'] } } }),
-    Payment.sum('amount', { where: { status: 'success' } }),
+    Order.count({
+      where: {
+        status: { [Op.in]: ["pending", "accepted", "picked_up", "in_transit"] },
+      },
+    }),
+    Payment.sum("amount", { where: { status: "success" } }),
     Driver.count({ where: { isVerified: false } }),
   ]);
 
@@ -38,32 +50,39 @@ const getRevenueAnalytics = async (days) => {
 
   return await Payment.findAll({
     attributes: [
-      [fn('DATE', col('paidAt')), 'date'],
-      [fn('SUM', col('amount')), 'revenue'],
-      [fn('COUNT', col('id')), 'count'],
+      [fn("DATE", col("paidAt")), "date"],
+      [fn("SUM", col("amount")), "revenue"],
+      [fn("COUNT", col("id")), "count"],
     ],
-    where: { status: 'success', paidAt: { [Op.gte]: since } },
-    group: [fn('DATE', col('paidAt'))],
-    order: [[fn('DATE', col('paidAt')), 'ASC']],
+    where: { status: "success", paidAt: { [Op.gte]: since } },
+    group: [fn("DATE", col("paidAt"))],
+    order: [[fn("DATE", col("paidAt")), "ASC"]],
     raw: true,
   });
 };
 
 const getAllUsers = async (queryParams) => {
-  const { page = 1, limit = 10, role, search, status, isVerified } = queryParams;
-  
+  const {
+    page = 1,
+    limit = 10,
+    role,
+    search,
+    status,
+    isVerified,
+  } = queryParams;
+
   const parsedPage = Math.max(1, parseInt(page, 10));
   const parsedLimit = Math.max(1, parseInt(limit, 10));
   const offset = (parsedPage - 1) * parsedLimit;
 
-  const where = { 
-    role: role || { [Op.ne]: 'admin' } 
+  const where = {
+    role: role || { [Op.ne]: "admin" },
   };
-  
+
   if (status) {
-    where.isActive = status === 'active'; 
+    where.isActive = status === "active";
   }
-  
+
   if (search) {
     where[Op.or] = [
       { name: { [Op.iLike]: `%${search}%` } },
@@ -74,75 +93,88 @@ const getAllUsers = async (queryParams) => {
 
   const include = [];
 
-  if (role === 'driver') {
+  if (role === "driver") {
     const driverWhere = {};
-    if (isVerified !== undefined && isVerified !== '') {
-      driverWhere.isVerified = isVerified === 'true';
+    if (isVerified !== undefined && isVerified !== "") {
+      driverWhere.isVerified = isVerified === "true";
     }
 
     include.push({
       model: Driver,
-      as: 'driverProfile',
-      required: isVerified !== undefined && isVerified !== '',
-      where: Object.keys(driverWhere).length > 0 ? driverWhere : undefined
+      as: "driverProfile",
+      required: isVerified !== undefined && isVerified !== "",
+      where: Object.keys(driverWhere).length > 0 ? driverWhere : undefined,
     });
   }
 
   const { count, rows } = await User.findAndCountAll({
     where,
-    attributes: { exclude: ['password', 'refreshToken'] },
-    include, 
-    order: [['createdAt', 'DESC']],
+    attributes: { exclude: ["password", "refreshToken"] },
+    include,
+    order: [["createdAt", "DESC"]],
     limit: parsedLimit,
     offset,
   });
 
   const totalPages = Math.ceil(count / parsedLimit);
 
-  return { 
-    users: rows, 
-    totalItems: count,          
-    totalPages: totalPages || 1, 
-    page: parsedPage,           
-    pageSize: parsedLimit       
+  return {
+    users: rows,
+    totalItems: count,
+    totalPages: totalPages || 1,
+    page: parsedPage,
+    pageSize: parsedLimit,
   };
 };
 
 const toggleUserStatus = async (id) => {
   const user = await User.findByPk(id);
-  if (!user) throw new NotFoundError('User');
-  
+  if (!user) throw new NotFoundError("User");
+
   await user.update({ isActive: !user.isActive });
-  return { 
-    message: `User ${user.isActive ? 'activated' : 'deactivated'}` 
+  return {
+    message: `User ${user.isActive ? "activated" : "deactivated"}`,
   };
 };
 
 const verifyDriver = async (userId, body) => {
-  const { licenseStatus, aadhaarStatus, vehicleDocumentStatus, rejectionReason } = body;
+  const {
+    licenseStatus,
+    aadhaarStatus,
+    vehicleDocumentStatus,
+    rejectionReason,
+  } = body;
 
   const driver = await Driver.findOne({ where: { userId } });
   if (!driver) {
-    throw new NotFoundError('Driver profile not found');
+    throw new NotFoundError("Driver profile not found");
   }
 
-  const statusOptions = ['pending', 'approved', 'rejected'];
+  const statusOptions = ["pending", "approved", "rejected"];
   if (
     (licenseStatus && !statusOptions.includes(licenseStatus)) ||
     (aadhaarStatus && !statusOptions.includes(aadhaarStatus)) ||
     (vehicleDocumentStatus && !statusOptions.includes(vehicleDocumentStatus))
   ) {
-    throw new ValidationError('Invalid status type provided for verification update.');
+    throw new ValidationError(
+      "Invalid status type provided for verification update.",
+    );
   }
 
   // Current date tracking boundary (YYYY-MM-DD format verification)
-  const todayDateString = new Date().toISOString().split('T')[0];
+  const todayDateString = new Date().toISOString().split("T")[0];
 
   // 1. Evaluate Regulatory Document Status Updates
   if (licenseStatus) {
     // Override manual approval if the database records show the license has already expired
-    if (licenseStatus === 'approved' && driver.licenseExpiryDate && driver.licenseExpiryDate < todayDateString) {
-      throw new ValidationError('Cannot approve profile: Driving License has already expired.');
+    if (
+      licenseStatus === "approved" &&
+      driver.licenseExpiryDate &&
+      driver.licenseExpiryDate < todayDateString
+    ) {
+      throw new ValidationError(
+        "Cannot approve profile: Driving License has already expired.",
+      );
     }
     driver.licenseStatus = licenseStatus;
   }
@@ -153,35 +185,47 @@ const verifyDriver = async (userId, body) => {
 
   if (vehicleDocumentStatus) {
     // Override manual approval if RC Book or Insurance coverage validation timelines have passed
-    if (vehicleDocumentStatus === 'approved') {
-      if (driver.vehicleRegistrationExpiryDate && driver.vehicleRegistrationExpiryDate < todayDateString) {
-        throw new ValidationError('Cannot approve profile: Vehicle Registration (RC Book) has expired.');
+    if (vehicleDocumentStatus === "approved") {
+      if (
+        driver.vehicleRegistrationExpiryDate &&
+        driver.vehicleRegistrationExpiryDate < todayDateString
+      ) {
+        throw new ValidationError(
+          "Cannot approve profile: Vehicle Registration (RC Book) has expired.",
+        );
       }
-      if (driver.insuranceExpiryDate && driver.insuranceExpiryDate < todayDateString) {
-        throw new ValidationError('Cannot approve profile: Vehicle Insurance coverage timeline has expired.');
+      if (
+        driver.insuranceExpiryDate &&
+        driver.insuranceExpiryDate < todayDateString
+      ) {
+        throw new ValidationError(
+          "Cannot approve profile: Vehicle Insurance coverage timeline has expired.",
+        );
       }
     }
     driver.vehicleDocumentStatus = vehicleDocumentStatus;
   }
 
   // 2. Structural State Resolution Logic
-  const hasRejections = 
-    driver.licenseStatus === 'rejected' || 
-    driver.aadhaarStatus === 'rejected' || 
-    driver.vehicleDocumentStatus === 'rejected';
+  const hasRejections =
+    driver.licenseStatus === "rejected" ||
+    driver.aadhaarStatus === "rejected" ||
+    driver.vehicleDocumentStatus === "rejected";
 
   if (hasRejections) {
     if (!rejectionReason) {
-      throw new ValidationError('A reason must be logged for profile rejection.');
+      throw new ValidationError(
+        "A reason must be logged for profile rejection.",
+      );
     }
     driver.rejectionReason = rejectionReason;
     driver.isVerified = false;
   } else {
-    const allApproved = 
-      driver.licenseStatus === 'approved' && 
-      driver.aadhaarStatus === 'approved' && 
-      driver.vehicleDocumentStatus === 'approved';
-    
+    const allApproved =
+      driver.licenseStatus === "approved" &&
+      driver.aadhaarStatus === "approved" &&
+      driver.vehicleDocumentStatus === "approved";
+
     if (allApproved) {
       driver.isVerified = true;
       driver.rejectionReason = null;
@@ -209,72 +253,191 @@ const getAllOrders = async (queryParams) => {
       [Op.or]: [
         { name: { [Op.iLike]: `%${search}%` } },
         { email: { [Op.iLike]: `%${search}%` } },
-        { phone: { [Op.iLike]: `%${search}%` } }
-      ]
+        { phone: { [Op.iLike]: `%${search}%` } },
+      ],
     };
 
     driverUserWhere = {
       [Op.or]: [
         { name: { [Op.iLike]: `%${search}%` } },
-        { phone: { [Op.iLike]: `%${search}%` } }
-      ]
+        { phone: { [Op.iLike]: `%${search}%` } },
+      ],
     };
   }
 
   const { count, rows } = await Order.findAndCountAll({
     where,
-    subQuery: false, 
+    subQuery: false,
     include: [
-      { 
-        model: User, 
-        as: 'customer', 
-        attributes: ['id', 'name', 'email', 'phone'],
+      {
+        model: User,
+        as: "customer",
+        attributes: ["id", "name", "email", "phone"],
         where: search ? customerWhere : undefined,
-        required: search ? false : true 
+        required: search ? false : true,
       },
       {
         model: Driver,
-        as: 'driver',
+        as: "driver",
         required: false,
-        include: [{ 
-          model: User, 
-          as: 'user', 
-          attributes: ['id', 'name', 'phone'],
-          where: search ? driverUserWhere : undefined,
-          required: search ? false : true
-        }],
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "phone"],
+            where: search ? driverUserWhere : undefined,
+            required: search ? false : true,
+          },
+        ],
       },
-      { 
-        model: Payment, 
-        as: 'payment', 
-        attributes: ['status', 'amount'], 
-        required: false 
+      {
+        model: Payment,
+        as: "payment",
+        attributes: ["status", "amount"],
+        required: false,
       },
     ],
     ...(search && {
       where: {
         ...where,
         [Op.or]: [
-          { '$customer.name$': { [Op.iLike]: `%${search}%` } },
-          { '$customer.email$': { [Op.iLike]: `%${search}%` } },
-          { '$driver.user.name$': { [Op.iLike]: `%${search}%` } }
-        ]
-      }
+          { "$customer.name$": { [Op.iLike]: `%${search}%` } },
+          { "$customer.email$": { [Op.iLike]: `%${search}%` } },
+          { "$driver.user.name$": { [Op.iLike]: `%${search}%` } },
+        ],
+      },
     }),
-    order: [['createdAt', 'DESC']],
+    order: [["createdAt", "DESC"]],
     limit: parsedLimit,
     offset,
   });
 
   const totalPages = Math.ceil(count / parsedLimit);
 
-  return { 
-    orders: rows, 
+  return {
+    orders: rows,
     totalItems: count,
     totalPages: totalPages || 1,
     page: parsedPage,
-    pageSize: parsedLimit
+    pageSize: parsedLimit,
   };
+};
+
+const exportOrdersCsv = async (queryParams) => {
+  const { page, limit, status, search } = queryParams;
+
+  console.log("Query Params:", queryParams);
+
+  // 1. Build basic filters
+  const where = status ? { status } : {};
+
+  let customerWhere = null;
+  let driverUserWhere = null;
+
+  if (search) {
+    customerWhere = {
+      [Op.or]: [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } },
+      ],
+    };
+
+    driverUserWhere = {
+      [Op.or]: [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } },
+      ],
+    };
+  }
+
+  // 2. DYNAMIC PAGINATION LOGIC
+  // Default is empty object -> Sequelize will return ALL records
+  let paginationQuery = {};
+
+  // Check if limit is explicitly passed and valid
+  const parsedLimit = parseInt(limit, 10);
+
+  if (!isNaN(parsedLimit) && parsedLimit > 0) {
+    const parsedPage = parseInt(page, 10);
+    const validPage = !isNaN(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const offset = (validPage - 1) * parsedLimit;
+
+    paginationQuery = {
+      limit: parsedLimit,
+      offset: offset,
+    };
+  }
+
+  // 3. Query Database
+  const orders = await Order.findAll({
+    where,
+    subQuery: false,
+    include: [
+      {
+        model: User,
+        as: "customer",
+        attributes: ["id", "name", "email", "phone"],
+        where: search ? customerWhere : undefined,
+        required: false,
+      },
+      {
+        model: Driver,
+        as: "driver",
+        required: false,
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "name", "phone"],
+            where: search ? driverUserWhere : undefined,
+            required: false,
+          },
+        ],
+      },
+      {
+        model: Payment,
+        as: "payment",
+        attributes: ["status", "amount"],
+        required: false,
+      },
+    ],
+    ...(search && {
+      where: {
+        ...where,
+        [Op.or]: [
+          { "$customer.name$": { [Op.iLike]: `%${search}%` } },
+          { "$customer.email$": { [Op.iLike]: `%${search}%` } },
+          { "$driver.user.name$": { [Op.iLike]: `%${search}%` } },
+        ],
+      },
+    }),
+    order: [["createdAt", "DESC"]],
+    ...paginationQuery, // If limit was passed, adds limit & offset. Otherwise adds nothing!
+  });
+
+  // 4. Transform to CSV
+  const formattedData = orders.map((order) => {
+    const plainOrder = order.get({ plain: true });
+
+    return {
+      "Order ID": plainOrder.id,
+      Status: plainOrder.status,
+      "Created At": plainOrder.createdAt
+        ? new Date(plainOrder.createdAt).toISOString()
+        : "",
+      "Customer Name": plainOrder.customer?.name || "N/A",
+      "Customer Email": plainOrder.customer?.email || "N/A",
+      "Customer Phone": plainOrder.customer?.phone || "N/A",
+      "Driver Name": plainOrder.driver?.user?.name || "Unassigned",
+      "Driver Phone": plainOrder.driver?.user?.phone || "N/A",
+      "Payment Status": plainOrder.payment?.status || "N/A",
+      "Payment Amount": plainOrder.payment?.amount ?? "N/A",
+    };
+  });
+
+  const json2csvParser = new Parser();
+  return json2csvParser.parse(formattedData);
 };
 
 module.exports = {
@@ -283,5 +446,6 @@ module.exports = {
   getAllUsers,
   toggleUserStatus,
   verifyDriver,
-  getAllOrders
+  getAllOrders,
+  exportOrdersCsv,
 };

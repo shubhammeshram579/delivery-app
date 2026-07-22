@@ -45,11 +45,11 @@ export default function AIPriceExplainer({ order }) {
       {open && (
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setOpen(false)} />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[90%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+          <div className="card fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[90%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b bg-primary-50">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary-600" />
-                <h3 className="text-sm font-semibold text-gray-900">AI Price Breakdown</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-300">AI Price Breakdown</h3>
               </div>
               <button onClick={() => setOpen(false)} className="p-1 hover:bg-white rounded-lg">
                 <X className="h-4 w-4 text-gray-500" />

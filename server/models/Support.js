@@ -1,9 +1,3 @@
-/**
- * SUPPORT MODELS — add this block into your existing server/models/index.js
- * Place it alongside your other sequelize.define() calls, then add the
- * associations at the bottom (shown at the end of this file).
- */
-
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
 

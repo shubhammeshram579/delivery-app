@@ -93,12 +93,12 @@ export default function AdminReassignModal({ orderId, open, onClose, onAssigned 
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+      <div className="fixed inset-0 bg-black/50 dark:bg-gray-500/20 z-50" onClick={onClose} />
+      <div className="card fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
 
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between p-5 border-b dark:border-gray-700 border-gray-100 flex-shrink-0">
           <div>
-            <h3 className="font-semibold text-gray-900">Reassign Driver</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-300">Reassign Driver</h3>
             <p className="text-xs text-gray-500 mt-0.5">Ranked by match score — distance, rating, acceptance rate, workload</p>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
@@ -107,7 +107,7 @@ export default function AdminReassignModal({ orderId, open, onClose, onAssigned 
         </div>
 
         {/* Auto-assign shortcut */}
-        <div className="px-5 py-3 bg-primary-50 border-b border-primary-100 flex-shrink-0">
+        <div className="card px-5 py-3 bg-primary-50 border-b border-primary-100 flex-shrink-0">
           <button
             onClick={triggerAutoAssign}
             disabled={assigning !== null}
@@ -142,9 +142,9 @@ export default function AdminReassignModal({ orderId, open, onClose, onAssigned 
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-gray-50 dark:divide-gray-800">
               {candidates.map((c, i) => (
-                <div key={c.driverId} className="flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors">
+                <div key={c.driverId} className="flex items-center gap-3 px-5 py-4 dark:hover:bg-gray-800 hover:bg-gray-50 transition-colors">
                   {/* Rank badge */}
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                     i === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500'
@@ -179,7 +179,7 @@ export default function AdminReassignModal({ orderId, open, onClose, onAssigned 
                   <button
                     onClick={() => assignManually(c.driverId)}
                     disabled={assigning !== null}
-                    className="text-xs px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex-shrink-0"
+                    className="text-xs px-3 py-1.5 bg-gray-900 dark:bg-primary-600 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex-shrink-0"
                   >
                     {assigning === c.driverId ? '...' : 'Assign'}
                   </button>

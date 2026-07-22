@@ -1,109 +1,70 @@
 const chatService = require('../services/chat.service');
+const asyncHandler = require('../utils/asyncHandler');
+const { ValidationError, AuthenticationError } = require('../middleware/error.middleware');
 
-const sendMessage = async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const { message, senderRole } = req.body;
+const sendMessage = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { message, senderRole } = req.body;
 
-    if (!message?.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Message is required'
-      });
-    }
-
-    const msg = await chatService.sendMessage({
-      orderId,
-      message,
-      senderRole,
-      user: req.user
-    });
-
-    return res.status(201).json({
-      success: true,
-      data: { message: msg }
-    });
-  } catch (error) {
-    console.error(error);
-    const statusCode = error.statusCode || 500;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message
-    });
+  if (!message?.trim()) {
+    throw new ValidationError('Message is required');
   }
-};
 
-const getMessageHistory = async (req, res) => {
-  try {
-    const { orderId } = req.params;
+  const msg = await chatService.sendMessage({
+    orderId,
+    message,
+    senderRole,
+    user: req.user
+  });
 
-    // Guard check: ensures req.user is populated by your authentication middleware
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required. Please log in.'
-      });
-    }
+  return res.status(201).json({
+    success: true,
+    data: { message: msg }
+  });
+});
 
-    const messages = await chatService.getMessageHistory({
-      orderId,
-      user: req.user
-    });
+const getMessageHistory = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
 
-    return res.json({
-      success: true,
-      data: { messages }
-    });
-  } catch (error) {
-    console.error(error);
-    const statusCode = error.statusCode || 500;
-    return res.status(statusCode).json({
-      success: false,
-      message: error.message
-    });
+  if (!req.user) {
+    throw new AuthenticationError('Authentication required. Please log in.');
   }
-};
 
-const markMessagesAsRead = async (req, res) => {
-  try {
-    const { orderId } = req.params;
+  const messages = await chatService.getMessageHistory({
+    orderId,
+    user: req.user
+  });
 
-    await chatService.markMessagesAsRead({
-      orderId,
-      userId: req.user.id
-    });
+  return res.json({
+    success: true,
+    data: { messages }
+  });
+});
 
-    return res.json({ 
-      success: true, 
-      message: 'Messages marked as read' 
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
+const markMessagesAsRead = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
 
-const getConversationsList = async (req, res) => {
-  try {
-    const conversations = await chatService.getConversationsList({
-      user: req.user
-    });
+  await chatService.markMessagesAsRead({
+    orderId,
+    userId: req.user.id
+  });
 
-    return res.json({ 
-      success: true, 
-      data: { conversations } 
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
+  return res.json({ 
+    success: true, 
+    message: 'Messages marked as read' 
+  });
+});
+
+const getConversationsList = asyncHandler(async (req, res) => {
+  const conversations = await chatService.getConversationsList({
+    user: req.user
+  });
+
+  return res.json({ 
+    success: true, 
+    data: { conversations } 
+  });
+});
 
 module.exports = {
   sendMessage,

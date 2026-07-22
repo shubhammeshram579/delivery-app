@@ -709,7 +709,7 @@ export default function DriverOrderDetailPage() {
           {/* Status + Addresses */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-800">{isPassenger ? "Booking" : "Order Status"}</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-300">{isPassenger ? "Booking" : "Order Status"}</h3>
               <StatusBadge status={order.status} />
             </div>
 
@@ -719,7 +719,7 @@ export default function DriverOrderDetailPage() {
                 <MapPin className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400">Pickup</p>
-                  <p className="text-sm text-gray-700 truncate">
+                  <p className="text-sm text-gray-700 dark:text-gray-500 truncate">
                     {order.pickupAddress}
                   </p>
                 </div>
@@ -739,7 +739,7 @@ export default function DriverOrderDetailPage() {
                 <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400">Drop</p>
-                  <p className="text-sm text-gray-700 truncate">
+                  <p className="text-sm text-gray-700 dark:text-gray-500 truncate">
                     {order.dropAddress}
                   </p>
                 </div>
@@ -780,13 +780,13 @@ export default function DriverOrderDetailPage() {
 
           {/* Customer info */}
           <div className="card p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">Customer</h3>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3">Customer</h3>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-semibold">
+              <div className="w-10 h-10 bg-primary-100  rounded-full flex items-center justify-center text-primary-700 font-semibold">
                 {order.customer?.name?.[0]}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-400">
                   {order.customer?.name}
                 </p>
                 <a
@@ -866,7 +866,7 @@ export default function DriverOrderDetailPage() {
             {/* STEP 2: Verify pickup OTP (accepted, OTP not yet done) */}
             {/* {order.status === "accepted" && !pickupOtpVerified && (
               <div className="card p-4 border-l-4 border-l-yellow-400 bg-yellow-50">
-                <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-300 mb-1 flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-yellow-500" />
                   Verify Pickup OTP
                 </p>
@@ -885,7 +885,7 @@ export default function DriverOrderDetailPage() {
             {/* STEP 2: Verify pickup OTP */}
             {order.status === "accepted" && !pickupOtpVerified && (
               <div className="card p-4 border-l-4 border-l-yellow-400 bg-yellow-50">
-                <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-300 mb-1 flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-yellow-500" />
                   Verify Pickup OTP
                 </p>
@@ -937,7 +937,7 @@ export default function DriverOrderDetailPage() {
               !isPassenger &&
               !deliveryOtpVerified && (
                 <div className="card p-4 border-l-4 border-l-blue-400 bg-blue-50">
-                  <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-300 mb-1 flex items-center gap-2">
                     <KeyRound className="h-4 w-4 text-blue-500" />
                     Verify Receiver OTP
                   </p>
@@ -958,7 +958,7 @@ export default function DriverOrderDetailPage() {
             {order.status === "in_transit" &&
               !isPassenger &&
               deliveryOtpVerified && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-lg text-xs text-green-700 font-medium">
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-800/20 dark:border-gray-700 rounded-lg text-xs text-green-700 font-medium">
                   <CheckCircle className="h-3.5 w-3.5" /> Receiver OTP verified
                 </div>
               )}
@@ -977,7 +977,7 @@ export default function DriverOrderDetailPage() {
             {order.status === "in_transit" &&
               (isPassenger || deliveryOtpVerified) && (
                 <div className="card p-4 border-l-4 border-l-green-400 bg-green-50">
-                  <p className="text-sm font-medium text-gray-800 mb-1 flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-300 mb-1 flex items-center gap-2">
                     <Camera className="h-4 w-4 text-green-500" />
                     {isPassenger
                       ? "Complete Drop-off Proof"
@@ -997,7 +997,7 @@ export default function DriverOrderDetailPage() {
 
                   <button
                     onClick={hadelShowProofModal}
-                    className="w-full py-3 text-base bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
+                    className="w-full py-3 text-base dark:bg-green-800/70 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors"
                   >
                     <Camera className="h-4 w-4" />
                     Upload Proof & Mark Delivered
@@ -1012,7 +1012,7 @@ export default function DriverOrderDetailPage() {
                 <button
                   onClick={handleCashCollected}
                   disabled={cashLoading}
-                  className="w-full py-3 text-base bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                  className="w-full py-3 text-base dark:bg-orange-500/20 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                 >
                   {cashLoading ? (
                     "Confirming..."
@@ -1027,7 +1027,7 @@ export default function DriverOrderDetailPage() {
 
             {/* Delivered success state */}
             {isDelivered && (
-              <div className="flex items-center justify-center gap-2 p-4 bg-green-50 rounded-xl border border-green-200">
+              <div className="flex items-center justify-center gap-2 p-4 bg-green-50 dark:bg-green-800/20 dark:border-gray-700  rounded-xl border border-green-200">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <span className="text-green-600 font-medium text-sm">
                   Order delivered successfully
@@ -1070,7 +1070,7 @@ export default function DriverOrderDetailPage() {
           {/* Chat (only when order is active) */}
           {isActive && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-gray-400" />
                 Chat with Customer
               </h3>
@@ -1091,7 +1091,7 @@ export default function DriverOrderDetailPage() {
                           className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
                             isMe
                               ? "bg-primary-600 text-white rounded-br-sm"
-                              : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                              : "bg-gray-100 text-gray-800 dark:text-gray-300 rounded-bl-sm"
                           }`}
                         >
                           {m.message}
@@ -1146,7 +1146,7 @@ export default function DriverOrderDetailPage() {
           <div className="card overflow-hidden" style={{ height: "520px" }}>
             {/* Map header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-800">
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-300">
                 {mapLabel}
               </h3>
               <div className="flex gap-3 text-xs text-gray-500">
@@ -1237,9 +1237,9 @@ export default function DriverOrderDetailPage() {
             className="fixed inset-0 bg-black/50 z-50"
             onClick={() => setShowOtpModal(false)}
           />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          <div className="card fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b dark:border-gray-700">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-300 flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-yellow-500" /> Pickup OTP
                 Verification
               </h3>
@@ -1298,9 +1298,9 @@ export default function DriverOrderDetailPage() {
             className="fixed inset-0 bg-black/50 z-50"
             onClick={() => setShowDelOtpModal(false)}
           />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          <div className="card fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b dark:border-gray-700">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-300 flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-blue-500" /> Delivery OTP
                 Verification
               </h3>
@@ -1323,7 +1323,7 @@ export default function DriverOrderDetailPage() {
                     <CheckCircle className="h-3.5 w-3.5" /> OTP sent to receiver
                   </p>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <label className="block text-sm font-medium text-gray-700  mb-1.5">
                       Enter Receiver OTP
                     </label>
                     <input
@@ -1358,12 +1358,12 @@ export default function DriverOrderDetailPage() {
       {showProofModal && (
         <>
           <div
-            className="fixed inset-0 bg-black/50 z-50"
+            className="fixed inset-0 bg-black/50 dark:bg-gray-700/50 z-50"
             onClick={closeProofModal}
           />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          <div className="card fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b dark:border-gray-700">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-300 flex items-center gap-2">
                 <Camera className="h-4 w-4 text-primary-600" /> Upload Delivery
                 Proof
               </h3>

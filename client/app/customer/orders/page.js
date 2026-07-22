@@ -20,11 +20,7 @@ export default function CustomerOrdersPage() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
 
-  console.log(orders)
-
-  
-
-
+  // console.log(orders)
 
   useEffect(() => {
     dispatch(fetchOrders({ page, limit: 10, status: status || undefined , orderNumber:search }));
@@ -60,21 +56,21 @@ export default function CustomerOrdersPage() {
             action={<Link href="/customer/orders/new" className="btn-primary">Place Order</Link>} />
         ) : (
           <>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-gray-50 dark:divide-gray-900 ">
               {orders.map((order) => (
                 <Link key={order.id} href={`/customer/orders/${order.id}`}
-                  className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <div className="w-10 h-10 bg-primary-50 dark:bg-primary-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Package className="h-5 w-5 text-primary-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">#{order.orderNumber}</p>
+                    <p className="text-sm font-semibold text-gray-900  dark:text-gray-300">#{order.orderNumber}</p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{order.dropAddress}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{format(new Date(order.createdAt), 'dd MMM yyyy, hh:mm a')}</p>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1.5">
                     <StatusBadge status={order.status} />
-                    <p className="text-sm font-semibold text-gray-900">₹{order.totalAmount}</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-300">₹{order.totalAmount}</p>
                   </div>
                 </Link>
               ))}

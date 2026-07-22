@@ -604,7 +604,7 @@ useEffect(() => {
           {/* Order Timeline */}
           {!isCancelled && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-4">{isPassenger ? "Booking Progress": "Order Progress" }</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-4">{isPassenger ? "Booking Progress": "Order Progress" }</h3>
               <div className="space-y-3">
                 {TIMELINE.map((step, i) => {
                   const done    = i <= currentStep;
@@ -667,7 +667,7 @@ useEffect(() => {
 
           {/* Addresses */}
           <div className="card p-5">
-            <h3 className="font-semibold text-gray-800 mb-3">Delivery Details</h3>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3">Delivery Details</h3>
             <div className="space-y-3">
               <div className="flex gap-3">
                 <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -675,7 +675,7 @@ useEffect(() => {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Pickup</p>
-                  <p className="text-sm text-gray-800">{order.pickupAddress}</p>
+                  <p className="text-sm text-gray-800 dark:text-gray-400">{order.pickupAddress}</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -684,7 +684,7 @@ useEffect(() => {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Drop</p>
-                  <p className="text-sm text-gray-800">{order.dropAddress}</p>
+                  <p className="text-sm text-gray-800 dark:text-gray-400">{order.dropAddress}</p>
                 </div>
               </div>
             </div>
@@ -714,7 +714,7 @@ useEffect(() => {
 
           {/* Payment */}
           {/* <div className="card p-5">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-4 flex items-center gap-2">
               <IndianRupee className="h-4 w-4 text-gray-400" /> Payment
             </h3>
             <div className="space-y-2 text-sm mb-4">
@@ -808,7 +808,7 @@ useEffect(() => {
 
           {/* Payment Card Section */}
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-4 flex items-center gap-2">
                 <IndianRupee className="h-4 w-4 text-gray-400" /> Payment
               </h3>
               <div className="space-y-2 text-sm mb-4">
@@ -830,7 +830,7 @@ useEffect(() => {
               {isCancelled ? (
                 <div>
                   {order.paymentMethod === "cash" ? (
-                    <div className="p-3 bg-gray-50 rounded-xl text-sm text-gray-500 text-center">
+                    <div className="p-3 bg-gray-50  rounded-xl text-sm text-gray-500 text-center">
                       Order cancelled — No cash collection needed
                     </div>
                   ) : order.payment?.status === "refunded" ? (
@@ -893,13 +893,13 @@ useEffect(() => {
           {/* Driver info */}
           {hasDriver && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">Your Driver</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3">Your Driver</h3>
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold text-lg">
                   {order.driver.user?.name?.[0]}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-300">
                     {order.driver.user?.name}
                   </p>
                   <p className="text-xs text-gray-500">
@@ -933,7 +933,7 @@ useEffect(() => {
           {/* Rating — show after delivery */}
           {isDelivered && !ratingDone && (
             <div className="card p-5 border-2 border-primary-100">
-              <h3 className="font-semibold text-gray-800 mb-1">Rate Your Delivery</h3>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-1">Rate Your Delivery</h3>
               <p className="text-xs text-gray-500 mb-4">How was your experience?</p>
               <div className="flex gap-2 justify-center mb-4">
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -956,7 +956,7 @@ useEffect(() => {
             <div className="card p-4 flex items-center gap-3">
               <CheckCircle className="h-5 w-5 text-green-500" />
               <div>
-                <p className="text-sm font-medium text-gray-800">Rating submitted</p>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-300">Rating submitted</p>
                 <p className="text-xs text-gray-400">
                   {"★".repeat(order.customerRating || rating)} — Thank you!
                 </p>
@@ -967,7 +967,7 @@ useEffect(() => {
           {/* Chat */}
           {hasDriver && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-gray-400" /> Chat with Driver
               </h3>
               <div className="h-48 overflow-y-auto mb-3 space-y-2 pr-1">
@@ -982,7 +982,7 @@ useEffect(() => {
                           className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
                             isMe
                               ? "bg-primary-600 text-white rounded-br-sm"
-                              : "bg-gray-100 text-gray-800 rounded-bl-sm"
+                              : "bg-gray-100 text-gray-800 dark:text-gray-300 rounded-bl-sm"
                           }`}
                         >
                           {m.message}
@@ -1025,7 +1025,7 @@ useEffect(() => {
           <div className="card overflow-hidden" style={{ height: "560px" }}>
             {/* Map header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-800">{mapLabel}</h3>
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-300">{mapLabel}</h3>
               <div className="flex gap-3 text-xs text-gray-500">
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Pickup
@@ -1081,16 +1081,16 @@ useEffect(() => {
       {/* ── Cancel Modal ─────────────────────────────────── */}
       {showCancelModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowCancelModal(false)} />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b">
+          <div className="fixed inset-0 bg-black/50 dark:bg-gray-700/50 z-50" onClick={() => setShowCancelModal(false)} />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white dark:bg-gray-900 w-[95%] max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b dark:border-gray-500">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
                   <AlertTriangle className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Cancel Order</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">This action cannot be undone</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-300">Cancel Order</h3>
+                  <p className="text-xs text-gray-500  mt-0.5">This action cannot be undone</p>
                 </div>
               </div>
               <button onClick={() => setShowCancelModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -1098,7 +1098,7 @@ useEffect(() => {
               </button>
             </div>
             <div className="p-5">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">
                 Cancellation Reason
               </label>
               <textarea
@@ -1106,24 +1106,24 @@ useEffect(() => {
                 onChange={(e) => setCancelReason(e.target.value)}
                 rows={3}
                 placeholder="Please tell us why you're cancelling..."
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                className="w-full border border-gray-200 dark:bg-gray-950 dark:border-gray-500 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-red-400 resize-none"
               />
               <div className="flex flex-wrap gap-2 mt-3">
                 {["Changed my mind", "Wrong address", "Driver taking too long", "Ordered by mistake"].map((r) => (
                   <button
                     key={r}
                     onClick={() => setCancelReason(r)}
-                    className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                    className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 rounded-full transition-colors"
                   >
                     {r}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="flex gap-3 p-5 border-t bg-gray-50">
+            <div className="flex gap-3 p-5 border-t dark:border-gray-500 bg-gray-50 dark:bg-gray-900">
               <button
                 onClick={() => setShowCancelModal(false)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-100 transition-colors"
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-700 dark:text-gray-400 hover:bg-gray-100 transition-colors"
               >
                 Keep Order
               </button>
@@ -1142,10 +1142,10 @@ useEffect(() => {
       {/* ── Rating Modal ─────────────────────────────────── */}
       {showRatingModal && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowRatingModal(false)} />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-gray-900">Rate Your Experience</h3>
+          <div className="fixed inset-0 bg-black/50 dark:bg-gray-700/50 z-50" onClick={() => setShowRatingModal(false)} />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white dark:bg-gray-900 w-[95%] max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b dark:border-gray-500">
+              <h3 className="font-semibold text-gray-900 dark:text-gray-300">Rate Your Experience</h3>
               <p className="text-xs text-gray-500 mt-1">Help us improve by rating your delivery</p>
             </div>
             <div className="p-5 space-y-4">
@@ -1162,7 +1162,7 @@ useEffect(() => {
                   </button>
                 ))}
               </div>
-              <p className="text-center text-sm text-gray-600">
+              <p className="text-center text-sm text-gray-600 dark:text-gray-400">
                 {rating === 0 ? "Tap a star to rate"
                   : rating === 1 ? "😞 Poor"
                   : rating === 2 ? "😐 Fair"
@@ -1175,7 +1175,7 @@ useEffect(() => {
                 onChange={(e) => setReview(e.target.value)}
                 rows={3}
                 placeholder="Write a review (optional)..."
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-400 resize-none"
+                className="w-full dark:bg-gray-950 dark:border-gray-600 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary-400 resize-none"
               />
               <div className="flex gap-3">
                 <button onClick={() => setShowRatingModal(false)} className="flex-1 btn-secondary">

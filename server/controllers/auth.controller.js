@@ -117,26 +117,6 @@ const logout = asyncHandler(async (req, res) => {
   });
 });
 
-// const forgotPassword = asyncHandler(async (req, res) => {
-//   const data = await authService.forgotPassword(
-//     req.body.email
-//   );
-
-//   res.status(200).json({
-//     success: true,
-//     ...data,
-//   });
-// });
-
-// const resetPassword = asyncHandler(async (req, res) => {
-//   const data = await authService.resetPassword(req.body);
-
-//   res.status(200).json({
-//     success: true,
-//     ...data,
-//   });
-// });
-
 const getMe = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
@@ -147,25 +127,25 @@ const getMe = asyncHandler(async (req, res) => {
 });
 
 
-const forgotPassword = async (req, res) => {
+const forgotPassword = asyncHandler(async (req, res) => {
   const data = await authService.forgotPassword(req.body.email);
   res.json({ success: true, ...data });
-};
+});
 
-const verifyResetOtp = async (req, res) => {
+const verifyResetOtp = asyncHandler(async (req, res) => {
   const data = await authService.verifyResetOtp(req.body);
   res.json({ success: true, ...data });
-};
+});
 
-const resetPassword = async (req, res) => {
+const resetPassword = asyncHandler(async (req, res) => {
   const data = await authService.resetPassword(req.body);
   res.json({ success: true, ...data });
-};
+});
 
-const resendResetOtp = async (req, res) => {
+const resendResetOtp = asyncHandler(async (req, res) => {
   const data = await authService.resendResetOtp(req.body.email);
   res.json({ success: true, ...data });
-};
+});
 
 module.exports = {
   registerAdmin,

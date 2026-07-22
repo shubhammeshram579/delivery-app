@@ -101,27 +101,27 @@ export default function AdminUsersPage() {
       {/* Main Records Table Card UI */}
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 dark:bg-gray-900 dark:border-gray-700 border-b border-gray-200">
             <tr>
               {['Name', 'Email', 'Phone', 'Role', 'Joined', 'Status', 'Action'].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300  uppercase tracking-wide">{h}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
             {loading ? (
               <tr><td colSpan={7} className="py-12"><LoadingSpinner /></td></tr>
             ) : users.length === 0 ? (
               <tr><td colSpan={7} className="py-12 text-center text-gray-400">No users found matching parameters.</td></tr>
             ) : users.map((u) => (
-              <tr key={u.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
+              <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-300">{u.name}</td>
                 <td className="px-4 py-3 text-gray-500">{u.email}</td>
                 <td className="px-4 py-3 text-gray-500">{u.phone}</td>
-                <td className="px-4 py-3"><span className="badge bg-gray-100 text-gray-700 capitalize">{u.role}</span></td>
+                <td className="px-4 py-3"><span className="badge bg-gray-100 dark:bg-primary-600/20 dark:text-gray-400 text-gray-700 capitalize">{u.role}</span></td>
                 <td className="px-4 py-3 text-gray-400">{u.createdAt ? format(new Date(u.createdAt), 'dd MMM yyyy') : '—'}</td>
                 <td className="px-4 py-3">
-                  <span className={`badge ${u.isActive ? 'bg-primary-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  <span className={`badge ${u.isActive ? 'bg-primary-100 text-green-700 dark:bg-primary-600/20' : 'bg-red-100 dark:bg-primary-600/20 text-red-700'}`}>
                     {u.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
@@ -136,7 +136,7 @@ export default function AdminUsersPage() {
         </table>
 
         {/* Real-World Dynamic Pagination Panel Integration */}
-        <div className="px-4 py-3 border-t border-gray-100">
+        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700">
           <Pagination 
             page={page} 
             totalPages={totalPages} 

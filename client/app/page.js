@@ -59,6 +59,7 @@ import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useRouter } from 'next/navigation';
 import { Truck, Package, MapPin, Clock, Shield, Star, ChevronRight, CheckCircle, Zap, Users } from 'lucide-react';
+import ThemeToggle from '../components/shared/ThemeToggle';
 
 const features = [
   { icon: Zap,    title: 'Real-time Tracking',  desc: 'Track your delivery live on the map. Know exactly where your package is every second.',       color: 'bg-yellow-50 text-yellow-600'  },
@@ -102,26 +103,28 @@ export default function HomePage() {
   }, [isAuthenticated, role, isInitialized, router]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
 
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+      <nav className="card sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <Truck className="h-4 w-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900 text-lg">DeliverPro</span>
+            <span className="font-bold text-gray-900 dark:text-gray-300 text-lg">DeliverPro</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm text-gray-600">
-            <a href="#features"     className="hover:text-gray-900 transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-gray-900 transition-colors">How it works</a>
-            <a href="#join"         className="hover:text-gray-900 transition-colors">Join as Driver</a>
+            <a href="#features"     className="hover:text-gray-900 dark:text-gray-300 transition-colors">Features</a>
+            <a href="#how-it-works" className="hover:text-gray-900 dark:text-gray-300 transition-colors">How it works</a>
+            <a href="#join"         className="hover:text-gray-900 dark:text-gray-300 transition-colors">Join as Driver</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login"    className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">Sign in</Link>
+            <Link href="/login"    className="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 transition-colors">Sign in</Link>
             <Link href="/register" className="btn-primary text-sm py-2 px-4">Get Started</Link>
+            <ThemeToggle />
           </div>
+           
         </div>
       </nav>
 
@@ -131,7 +134,7 @@ export default function HomePage() {
           <CheckCircle className="h-3.5 w-3.5" />
           Trusted by 50,000+ customers across the city
         </div>
-        <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-6">
+        <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-gray-300 leading-tight mb-6">
           Deliver Anything,{' '}
           <span className="text-primary-600">Anywhere</span>
           <br />in Minutes
@@ -150,8 +153,8 @@ export default function HomePage() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
           {stats.map((s) => (
-            <div key={s.label} className="bg-gray-50 rounded-xl p-4">
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
+            <div key={s.label} className="bg-gray-50 dark:bg-primary-600/10 rounded-xl p-4">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-300">{s.value}</p>
               <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
             </div>
           ))}
@@ -159,10 +162,10 @@ export default function HomePage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="bg-gray-50 py-20">
+      <section id="features" className="card bg-gray-50 py-20">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Everything you need</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-300 mb-3">Everything you need</h2>
             <p className="text-gray-500 max-w-xl mx-auto">Built for real-world delivery. From small parcels to large packages, we handle it all.</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -171,7 +174,7 @@ export default function HomePage() {
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${f.color}`}>
                   <f.icon className="h-5 w-5" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{f.title}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-300 mb-2">{f.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
               </div>
             ))}
@@ -183,7 +186,7 @@ export default function HomePage() {
       <section id="how-it-works" className="py-20">
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">How it works</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-300 mb-3">How it works</h2>
             <p className="text-gray-500">Get your package delivered in 4 simple steps</p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -192,7 +195,7 @@ export default function HomePage() {
                 <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center mb-4">
                   <span className="text-white font-bold text-sm">{s.step}</span>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">{s.title}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-300 mb-2">{s.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{s.desc}</p>
               </div>
             ))}
@@ -201,10 +204,10 @@ export default function HomePage() {
       </section>
 
       {/* Join section */}
-      <section id="join" className="bg-gray-50 py-20">
+      <section id="join" className="card bg-gray-50 py-20">
         <div className="max-w-4xl mx-auto px-4">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Join DeliverPro today</h2>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-300 mb-3">Join DeliverPro today</h2>
             <p className="text-gray-500">Choose how you want to use the platform</p>
           </div>
           <div className="grid md:grid-cols-2 gap-5">
@@ -213,7 +216,7 @@ export default function HomePage() {
               <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-5">
                 <Package className="h-6 w-6 text-primary-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Send a Package</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-300 mb-2">Send a Package</h3>
               <p className="text-gray-500 text-sm mb-5 leading-relaxed">
                 Place delivery orders, track in real-time, chat with your driver and pay securely online.
               </p>
@@ -234,7 +237,7 @@ export default function HomePage() {
               <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mb-5">
                 <Truck className="h-6 w-6 text-gray-700" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Deliver and Earn</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-300 mb-2">Deliver and Earn</h3>
               <p className="text-gray-500 text-sm mb-5 leading-relaxed">
                 Join our verified driver network. Accept orders on your schedule and grow your income daily.
               </p>
@@ -256,7 +259,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA Banner */}
-      <section className="bg-primary-600 py-16">
+      <section className="bg-primary-600 dark:bg-primary-600/20 py-16">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to get started?</h2>
           <p className="text-primary-100 mb-8">Join thousands of customers and drivers already using DeliverPro.</p>

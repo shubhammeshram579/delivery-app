@@ -40,18 +40,18 @@ export default function DriverOrdersPage() {
             description="Available orders will appear on your dashboard."
           />
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 dark:divide-gray-800">
             {orders?.map((order) => (
               <Link
                 key={order?.id}
                 href={`/driver/orders/${order?.id}`}
-                className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
-                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Package className="h-5 w-5 text-orange-500" />
+                <div className="w-10 h-10 bg-orange-50 dark:bg-primary-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Package className="h-5 w-5 text-orange-500 dark:text-primary-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-300">
                     #{order.orderNumber}
                   </p>
                   <p className="text-xs text-gray-500 truncate">

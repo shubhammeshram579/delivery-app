@@ -22,10 +22,10 @@ export const OrderOfferModal = ({ offer, timeLeft, onAccept, onReject }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white text-white shadow-2xl border border-white animate-in fade-in zoom-in-95 duration-200">
+      <div className="card relative w-full max-w-md overflow-hidden rounded-2xl bg-white text-white shadow-2xl border border-white animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header containing the animated SVG progress ring */}
-        <div className="flex flex-col items-center bg-primary-600 p-6 text-center border-b border-white">
+        <div className="flex flex-col items-center bg-primary-600 dark:bg-primary-600/30 dark:border-gray-700 p-6 text-center border-b border-white">
           <div className="relative flex items-center justify-center w-20 h-20 mb-3">
             <svg className="w-full h-full transform -rotate-90">
               {/* Outer tracking background ring */}
@@ -60,19 +60,19 @@ export const OrderOfferModal = ({ offer, timeLeft, onAccept, onReject }) => {
 
         {/* Offer details & parameters */}
         <div className="p-6 space-y-4">
-          <div className="flex justify-between items-center bg-primary-50 p-3 rounded-lg border border-primary-600">
+          <div className="flex justify-between items-center bg-primary-50 dark:bg-gray-900 dark:border-gray-700 p-3 rounded-lg border border-primary-600">
             <div>
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Estimated Earning</span>
-              <span className="text-2xl font-black text-black">${Number(offer.deliveryFee || 0).toFixed(2)}</span>
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-gray-300 font-bold block">Estimated Earning</span>
+              <span className="text-2xl font-black text-black dark:text-gray-400">${Number(offer.deliveryFee || 0).toFixed(2)}</span>
             </div>
             <div className="text-right">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Distance</span>
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-gray-300 font-bold block">Distance</span>
               <span className="text-lg font-bold text-primary-600">{offer.distance || '0.0'} miles</span>
             </div>
           </div>
 
           {/* Location details */}
-          <div className="space-y-3 relative before:absolute before:left-3 before:top-4 before:bottom-4 before:w-[2px] before:bg-slate-800">
+          <div className="card space-y-3 relative before:absolute before:left-3 before:top-4 before:bottom-4 before:w-[2px] before:bg-slate-800">
             <div className="flex items-start gap-3 pl-6 relative">
               <div className="absolute left-2 top-[6px] w-2 h-2 rounded-full bg-primary-600" />
               <div>

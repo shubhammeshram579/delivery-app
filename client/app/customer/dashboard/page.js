@@ -44,7 +44,7 @@ export default function CustomerDashboard() {
     <DashboardLayout role="customer" title="Dashboard">
       {/* Greeting */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Good morning, {user?.name?.split(' ')[0]} 👋</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-slate-300">Good morning, {user?.name?.split(' ')[0]} 👋</h2>
         <p className="text-sm text-gray-500 mt-0.5">Here's what's happening with your deliveries.</p>
       </div>
 
@@ -64,8 +64,8 @@ export default function CustomerDashboard() {
 
       {/* Recent orders */}
       <div className="card">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-800">Recent Orders</h3>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="font-semibold text-gray-800 dark:text-gray-100">Recent Orders</h3>
           <Link href="/customer/orders" className="text-sm text-primary-600 hover:underline">View all</Link>
         </div>
 
@@ -82,14 +82,14 @@ export default function CustomerDashboard() {
             }
           />
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 dark:divide-gray-900 ">
             {orders.slice(0, 5).map((order) => (
-              <Link key={order.id} href={`/customer/orders/${order.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
-                <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Link key={order.id} href={`/customer/orders/${order.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <div className="w-10 h-10 bg-primary-50 dark:bg-primary-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Package className="h-5 w-5 text-primary-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">#{order.orderNumber}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-300 truncate">#{order.orderNumber}</p>
                   <p className="text-xs text-gray-500 truncate">{order.dropAddress}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1">

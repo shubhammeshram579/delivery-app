@@ -92,7 +92,7 @@ export default function NotificationDropdown({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+        className="fixed inset-0 bg-black/40  z-40 lg:hidden"
         onClick={onClose}
       />
 
@@ -104,6 +104,8 @@ export default function NotificationDropdown({
           w-[95%] sm:w-[420px]
           max-h-[85vh]
           bg-white
+          dark:bg-gray-900
+          dark:border-primary-600/20
           rounded-2xl
           shadow-2xl
           border border-gray-200
@@ -113,12 +115,12 @@ export default function NotificationDropdown({
         "
       >
         {/* Header */}
-        <div className="px-4 py-3 border-b bg-white sticky top-0 z-10">
+        <div className="card px-4 py-3 dark:border-gray-800 border-b bg-white sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-gray-700" />
 
-              <h2 className="font-semibold text-gray-900">Notifications</h2>
+              <h2 className="font-semibold text-gray-900 dark:text-gray-300 ">Notifications</h2>
 
               {unreadCount > 0 && (
                 <span className="bg-primary-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -147,7 +149,7 @@ export default function NotificationDropdown({
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors capitalize ${
                   filter === f
                     ? "bg-primary-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400"
                 }`}
               >
                 {f === "unread" ? `Unread (${unreadCount})` : f}
@@ -157,12 +159,12 @@ export default function NotificationDropdown({
         </div>
 
         {/* Notifications */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="card flex-1 overflow-y-auto">
           {filteredNotifications.length === 0 ? (
             <div className="py-14 text-center">
               <Bell className="w-10 h-10 text-gray-300 mx-auto mb-3" />
 
-              <p className="text-sm font-medium text-gray-700">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
                 No notifications
               </p>
 
@@ -180,15 +182,15 @@ export default function NotificationDropdown({
                 <div
                   key={n.id}
                   onClick={() => onMarkRead(n.id)}
-                  className={`flex gap-3 px-4 py-4 border-b cursor-pointer transition-colors ${
+                  className={`flex gap-3 px-4 py-4 border-b dark:border-gray-700 cursor-pointer transition-colors ${
                     !n.isRead
-                      ? "bg-blue-50/40 hover:bg-blue-50/60"
-                      : "hover:bg-gray-50"
+                      ? "bg-blue-50/40 dark:bg-gray-800 hover:bg-blue-50/60 dark:hover:bg-primary-600/10"
+                      : "hover:bg-gray-50 dark:hover:bg-primary-600/10"
                   }`}
                 >
                   {/* Icon */}
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.bg}`}
+                    className={`w-10 h-10 rounded-xl dark:bg-primary-600/20 flex items-center justify-center flex-shrink-0 ${cfg.bg}`}
                   >
                     <Icon className={`w-4 h-4 ${cfg.color}`} />
                   </div>
@@ -197,7 +199,7 @@ export default function NotificationDropdown({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-400">
                           {n.title}
                         </p>
 

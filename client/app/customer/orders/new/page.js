@@ -310,7 +310,7 @@ function Field({ label, required, error, children, hint }) {
   return (
     <div>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
           {label}
           {required && <span className="text-red-500 ml-0.5">*</span>}
           {hint && (
@@ -423,41 +423,6 @@ export default function NewOrderPage() {
   const isFragile = watch("isFragile");
   const vehicleType = watch("vehicleType"); // Watch the vehicle choice
 
-  // useEffect(() => {
-  //   if (!pickupCoords || !dropCoords || !weight || weight <= 0) {
-  //     setPriceEstimate(null);
-  //     return;
-  //   }
-
-  //   // Haversine distance
-  //   const R    = 6371;
-  //   const dLat = ((dropCoords.lat - pickupCoords.lat) * Math.PI) / 180;
-  //   const dLng = ((dropCoords.lng - pickupCoords.lng) * Math.PI) / 180;
-  //   const a =
-  //     Math.sin(dLat / 2) ** 2 +
-  //     Math.cos((pickupCoords.lat * Math.PI) / 180) *
-  //       Math.cos((dropCoords.lat * Math.PI) / 180) *
-  //       Math.sin(dLng / 2) ** 2;
-  //   const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  //   // Same formula as original, plus fragile surcharge
-  //   const base       = 20;
-  //   const delivery   = dist * 8 + Number(weight) * 5;
-  //   const fragile    = isFragile ? 15 : 0;
-  //   const total      = base + delivery + fragile;
-
-  //   // ETA: base 3 min/km, minimum 10 min
-  //   const eta = Math.max(10, Math.ceil(dist * 3));
-
-  //   setPriceEstimate({
-  //     distance: dist.toFixed(1),
-  //     eta,
-  //     base,
-  //     delivery:     delivery.toFixed(0),
-  //     fragileFee:   fragile,
-  //     total:        total.toFixed(0),
-  //   });
-  // }, [pickupCoords, dropCoords, weight, isFragile]);
 
   useEffect(() => {
     if (
@@ -602,7 +567,7 @@ export default function NewOrderPage() {
             >
               {/* ── Section 1: Pickup ────────────────── */}
               <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <MapPin className="h-3.5 w-3.5 text-green-600" />
                   </div>
@@ -626,7 +591,7 @@ export default function NewOrderPage() {
 
               {/* ── Section 2: Drop ──────────────────── */}
               <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <MapPin className="h-3.5 w-3.5 text-red-600" />
                   </div>
@@ -651,10 +616,10 @@ export default function NewOrderPage() {
               {/* ── Section 3: Receiver (Hidden if Passenger Booking) ────────── */}
               {category !== "passenger" && (
                 <div className="card p-4 sm:p-5">
-                  <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-300  mb-3 flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-400" /> Receiver Details
                   </h3>
-                  <div className="space-y-4">
+                  <div className="space-y-4" >
                     <Field
                       label="Full Name"
                       required
@@ -729,7 +694,7 @@ export default function NewOrderPage() {
 
               {/* ── Section 4: Package Details ────────── */}
               <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex items-center gap-2">
                   {category === "passenger" ? (
                     <>
                       <Users className="h-4 w-4 text-gray-400" /> Passenger
@@ -848,14 +813,14 @@ export default function NewOrderPage() {
                       </div>
 
                       {/* Fragile toggle */}
-                      <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                      <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                         <input
                           type="checkbox"
                           className="mt-0.5 w-4 h-4 accent-primary-600"
                           {...register("isFragile")}
                         />
                         <div>
-                          <p className="text-sm font-medium text-gray-800">
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-400">
                             Fragile Package
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">
@@ -901,7 +866,7 @@ export default function NewOrderPage() {
 
               {/* ── Section: Choose Vehicle Type ────────── */}
               <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <Package className="h-4 w-4 text-gray-400" /> Vehicle Category
                 </h3>
 
@@ -934,10 +899,10 @@ export default function NewOrderPage() {
                           key={v.value}
                           className={`flex flex-col p-3 rounded-xl border-2 transition-all ${
                             isDisabled
-                              ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                              ? "border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-primary-600/30 opacity-40 cursor-not-allowed"
                               : selected
-                                ? "border-primary-500 bg-primary-50 cursor-pointer"
-                                : "border-gray-200 hover:border-gray-300 cursor-pointer"
+                                ? "border-primary-500 bg-primary-50 dark:bg-primary-600/30 cursor-pointer"
+                                : "border-gray-200 dark:border-gray-700 hover:border-gray-300 cursor-pointer"
                           }`}
                         >
                           <input
@@ -949,11 +914,11 @@ export default function NewOrderPage() {
                           />
                           <div className="flex justify-between items-center">
                             <span
-                              className={`text-sm font-medium ${selected ? "text-primary-700" : "text-gray-800"}`}
+                              className={`text-sm font-medium ${selected ? "text-primary-700" : "text-gray-800 dark:text-gray-400"}`}
                             >
                               {v.label}
                             </span>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 font-medium text-gray-500">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-primary-600/20 font-medium text-gray-500">
                               {v.value === "car" && category === "passenger"
                                 ? "Max 4 Persons"
                                 : `Max ${v.maxWeight}kg`}
@@ -977,7 +942,7 @@ export default function NewOrderPage() {
 
               {/* ── Section 5: Delivery Instructions ─── */}
               <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <FileText className="h-4 w-4 text-gray-400" /> Delivery
                   Instructions
                   <span className="text-xs font-normal text-gray-400">
@@ -1000,7 +965,7 @@ export default function NewOrderPage() {
 
               {/* ── Section 6: Payment Method ─────────── */}
               <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <IndianRupee className="h-4 w-4 text-gray-400" /> Payment
                   Method
                 </h3>
@@ -1028,8 +993,8 @@ export default function NewOrderPage() {
                         key={opt.value}
                         className={`flex flex-col gap-0.5 p-3 sm:p-4 rounded-xl border-2 cursor-pointer transition-all ${
                           selected
-                            ? "border-primary-500 bg-primary-50"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-primary-500  bg-primary-50 dark:bg-primary-600/20"
+                            : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
                         }`}
                       >
                         <input
@@ -1039,7 +1004,7 @@ export default function NewOrderPage() {
                           {...register("paymentMethod")}
                         />
                         <span
-                          className={`text-sm font-medium leading-tight ${selected ? "text-primary-700" : "text-gray-800"}`}
+                          className={`text-sm font-medium leading-tight ${selected ? "text-primary-700" : "text-gray-800 dark:text-gray-400"}`}
                         >
                           {opt.label}
                         </span>
@@ -1099,7 +1064,7 @@ export default function NewOrderPage() {
                 </div>
               )}
               {mapLoaded && !pickupCoords && !dropCoords && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/90 rounded-xl gap-2 pointer-events-none">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50/90 dark:bg-gray-900 rounded-xl gap-2 pointer-events-none">
                   <MapPin className="h-8 w-8 text-gray-300" />
                   <p className="text-sm text-gray-400">
                     Enter addresses to see route
@@ -1111,7 +1076,7 @@ export default function NewOrderPage() {
             {/* Price estimate */}
             {priceEstimate ? (
               <div className="card p-4 sm:p-5">
-                <h3 className="font-semibold text-gray-800 mb-3">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-3">
                   Price Estimate
                 </h3>
                 <div className="space-y-2">

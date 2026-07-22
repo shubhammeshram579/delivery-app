@@ -81,12 +81,12 @@ const { activeOffer, timeLeft, accept, reject } = useOrderOffers();
   return (
     <DashboardLayout role="driver" title="Driver Dashboard">
       {/* Availability toggle */}
-      <div className={`rounded-xl p-5 mb-6 flex items-center justify-between transition-colors ${isAvailable ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
+      <div className={`rounded-xl p-5 mb-6 flex items-center justify-between transition-colors ${isAvailable ? 'bg-green-50 border border-green-200 dark:bg-gray-900 dark:border-gray-800' : 'bg-gray-50 border border-gray-200 dark:bg-gray-900 dark:border-gray-800'}`}>
         <div>
-          <p className="font-semibold text-gray-900">{isAvailable ? '🟢 You are Online' : '⚫ You are Offline'}</p>
+          <p className="font-semibold text-gray-900 dark:text-gray-300">{isAvailable ? '🟢 You are Online' : '⚫ You are Offline'}</p>
           <p className="text-sm text-gray-500 mt-0.5">{isAvailable ? 'You will receive new order requests' : 'Go online to accept deliveries'}</p>
         </div>
-        <button onClick={toggleAvailability} disabled={toggling} className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+        <button onClick={toggleAvailability} disabled={toggling} className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-white dark:bg-primary-600/20 dark:border-gray-800 border border-gray-200 hover:bg-gray-50 transition-colors">
           {toggling ? <LoadingSpinner size="sm" /> : isAvailable ? <ToggleRight className="h-5 w-5 text-green-500" /> : <ToggleLeft className="h-5 w-5 text-gray-400" />}
           {isAvailable ? 'Go Offline' : 'Go Online'}
         </button>
@@ -109,7 +109,7 @@ const { activeOffer, timeLeft, accept, reject } = useOrderOffers();
       {activeOrder && (
         <div className="card p-5 mb-6 border-l-4 border-l-primary-500">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-800">Active Delivery</h3>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-300">Active Delivery</h3>
             <StatusBadge status={activeOrder.status} />
           </div>
           <div className="space-y-2 mb-4">
@@ -130,20 +130,20 @@ const { activeOffer, timeLeft, accept, reject } = useOrderOffers();
 
       {/* Pending orders pool */}
       <div className="card">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-800">Available Orders</h3>
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="font-semibold text-gray-800 dark:text-gray-300">Available Orders</h3>
         </div>
         {orders.filter((o) => o.status === 'pending').length === 0 ? (
           <EmptyState title="No orders right now" description="New orders will appear here when customers place them." />
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 dark:divide-gray-800">
             {orders.filter((o) => o.status === 'pending').map((order) => (
-              <Link key={order.id} href={`/driver/orders/${order.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
-                <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Package className="h-5 w-5 text-orange-500" />
+              <Link key={order.id} href={`/driver/orders/${order.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <div className="w-10 h-10 bg-orange-50 dark:bg-primary-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Package className="h-5 w-5 text-orange-500 dark:text-primary-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">#{order.orderNumber}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-300">#{order.orderNumber}</p>
                   <p className="text-xs text-gray-500 truncate">{order.distance?.toFixed(1)} km • {order.estimatedTime} mins</p>
                 </div>
                 <div className="text-right">

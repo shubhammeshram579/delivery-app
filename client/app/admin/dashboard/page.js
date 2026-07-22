@@ -66,7 +66,7 @@ export default function AdminDashboard() {
       {/* Revenue chart */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="card p-5 lg:col-span-2">
-          <h3 className="font-semibold text-gray-800 mb-5">Revenue — Last 30 days</h3>
+          <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-5">Revenue — Last 30 days</h3>
           {revenue.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={revenue} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
                     <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                {/* <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /> */}
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v}`} />
                 <Tooltip formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']} />
@@ -89,11 +89,11 @@ export default function AdminDashboard() {
         </div>
 
         <div className="card p-5">
-          <h3 className="font-semibold text-gray-800 mb-5">Orders per day</h3>
+          <h3 className="font-semibold text-gray-800 dark:text-gray-300 mb-5">Orders per day</h3>
           {revenue.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={revenue.slice(-7)} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                {/* <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /> */}
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} />
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} />
                 <Tooltip />

@@ -239,10 +239,10 @@ export default function DriverProfilePage() {
       <div className="max-w-4xl mx-auto space-y-6 pb-12">
         
         {/* Status System Header */}
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="card bg-white rounded-xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="relative group">
-              <div className="w-20 h-20 bg-slate-100 rounded-full overflow-hidden border border-slate-200 flex items-center justify-center">
+              <div className="w-20 h-20 bg-slate-100 dark:bg-primary-600/10 dark:border-gray-700 rounded-full overflow-hidden border border-slate-200 flex items-center justify-center">
                 {previews.avatar ? (
                   <img src={previews.avatar} alt="Profile" className="object-cover w-full h-full" />
                 ) : (
@@ -255,7 +255,7 @@ export default function DriverProfilePage() {
               </label>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">{formData.name || 'Driver Partner'}</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-gray-300 dark:text-gray-300">{formData.name || 'Driver Partner'}</h2>
               <p className="text-sm text-slate-500">{driverProfile?.user?.email}</p>
               <div className="flex items-center gap-2 mt-1.5">
                 <span className="text-xs font-semibold bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-md">Driver Partner</span>
@@ -286,16 +286,16 @@ export default function DriverProfilePage() {
         )}
 
         {/* Custom Shadcn-like Tab System Navigation */}
-        <div className="flex border-b border-slate-200 overflow-x-auto space-x-2">
+        <div className="flex border-b border-slate-200 dark:border-gray-700 overflow-x-auto space-x-2">
           {['personal', 'vehicle', 'documents'].map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={`py-2.5 px-4 font-medium text-sm border-b-2 whitespace-nowrap transition-all ${
+              className={`py-2.5 px-4 font-medium text-sm border-b-2  whitespace-nowrap transition-all ${
                 activeTab === tab
                   ? 'border-primary-600 text-primary-600 font-semibold'
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-gray-300'
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)} Information
@@ -311,22 +311,22 @@ export default function DriverProfilePage() {
           
           {/* TAB 1: PERSONAL DETAILS */}
           {activeTab === 'personal' && (
-            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-lg font-semibold text-slate-900">Personal Management</h3>
+            <div className="card bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-gray-300">Personal Management</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Full Name</label>
-                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.name ? 'border-red-500' : 'border-slate-200'}`} />
+                  <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Full Name</label>
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} className={`w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.name ? 'border-red-500' : 'border-slate-200'}`} />
                   {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Phone Connection</label>
-                  <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.phone ? 'border-red-500' : 'border-slate-200'}`} />
+                  <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Phone Connection</label>
+                  <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className={`w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.phone ? 'border-red-500' : 'border-slate-200'}`} />
                   {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
                 </div>
                 <div className="space-y-1.5 opacity-60">
-                  <label className="text-sm font-medium text-slate-700">Email (Immutable Account Anchor)</label>
-                  <input type="email" value={driverProfile?.user?.email || ''} disabled className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm cursor-not-allowed" />
+                  <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Email (Immutable Account Anchor)</label>
+                  <input type="email" value={driverProfile?.user?.email || ''} disabled className="w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm cursor-not-allowed" />
                 </div>
               </div>
             </div>
@@ -334,12 +334,12 @@ export default function DriverProfilePage() {
 
           {/* TAB 2: VEHICLE CRITERIA */}
           {activeTab === 'vehicle' && (
-            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-lg font-semibold text-slate-900">Fleet configuration</h3>
+            <div className="card bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-gray-300">Fleet configuration</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Vehicle Type</label>
-                  <select name="vehicleType" value={formData.vehicleType} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm bg-white focus:outline-slate-900 ${errors.vehicleType ? 'border-red-500' : 'border-slate-200'}`}>
+                  <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Vehicle Type</label>
+                  <select name="vehicleType" value={formData.vehicleType} onChange={handleInputChange} className={`w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm bg-white focus:outline-slate-900 ${errors.vehicleType ? 'border-red-500' : 'border-slate-200'}`}>
                     {['bike', 'scooter', 'car', 'van', 'truck'].map((type) => (
                       <option key={type} value={type}>{type.toUpperCase()}</option>
                     ))}
@@ -347,8 +347,8 @@ export default function DriverProfilePage() {
                   {errors.vehicleType && <p className="text-xs text-red-500 mt-1">{errors.vehicleType}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Vehicle Plate Number</label>
-                  <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.vehicleNumber ? 'border-red-500' : 'border-slate-200'}`} placeholder="MH-12-XX-XXXX" />
+                  <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Vehicle Plate Number</label>
+                  <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} className={`w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.vehicleNumber ? 'border-red-500' : 'border-slate-200'}`} placeholder="MH-12-XX-XXXX" />
                   {errors.vehicleNumber && <p className="text-xs text-red-500 mt-1">{errors.vehicleNumber}</p>}
                 </div>
               </div>
@@ -360,25 +360,25 @@ export default function DriverProfilePage() {
             <div className="space-y-4">
               
               {/* DRIVER LICENSE CONTAINER WITH EXPIRY DATE */}
-              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+              <div className="card bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
-                  <h4 className="font-semibold text-slate-900 text-sm">Driving License Document</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-gray-300 text-sm">Driving License Document</h4>
                   <StatusBadge status={driverProfile?.licenseStatus} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">License ID String</label>
-                    <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.licenseNumber ? 'border-red-500' : 'border-slate-200'}`} />
+                    <label className="text-sm font-medium text-slate-700 dark:text-gray-400">License ID String</label>
+                    <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleInputChange} className={`w-full  dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.licenseNumber ? 'border-red-500' : 'border-slate-200'}`} />
                     {errors.licenseNumber && <p className="text-xs text-red-500 mt-1">{errors.licenseNumber}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">License Expiry Date</label>
-                    <input type="date" name="licenseExpiryDate" value={formData.licenseExpiryDate} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.licenseExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
+                    <label className="text-sm font-medium text-slate-700 dark:text-gray-400">License Expiry Date</label>
+                    <input type="date" name="licenseExpiryDate" value={formData.licenseExpiryDate} onChange={handleInputChange} className={`w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.licenseExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
                     {errors.licenseExpiryDate && <p className="text-xs text-red-500 mt-1">{errors.licenseExpiryDate}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Upload License Copy (JPG/PNG)</label>
-                    <input type="file" name="licenseDoc" accept="image/*" onChange={handleFileChange} className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Upload License Copy (JPG/PNG)</label>
+                    <input type="file" name="licenseDoc" accept="image/*" onChange={handleFileChange} className="w-full dark:bg-gray-950 dark:border-gray-700 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 dark:text-gray-400 hover:file:bg-slate-200" />
                   </div>
                 </div>
                 {previews.licenseDoc && (
@@ -389,20 +389,20 @@ export default function DriverProfilePage() {
               </div>
 
               {/* AADHAAR CARD REGISTRATION */}
-              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+              <div className="card bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
-                  <h4 className="font-semibold text-slate-900 text-sm">National Identity Card</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-gray-300 text-sm">National Identity Card</h4>
                   <StatusBadge status={driverProfile?.aadhaarStatus} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">12-Digit Unique ID</label>
-                    <input type="text" name="aadhaarNumber" maxLength={12} value={formData.aadhaarNumber} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.aadhaarNumber ? 'border-red-500' : 'border-slate-200'}`} placeholder="123456789012" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-gray-400">12-Digit Unique ID</label>
+                    <input type="text" name="aadhaarNumber" maxLength={12} value={formData.aadhaarNumber} onChange={handleInputChange} className={`w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.aadhaarNumber ? 'border-red-500' : 'border-slate-200'}`} placeholder="123456789012" />
                     {errors.aadhaarNumber && <p className="text-xs text-red-500 mt-1">{errors.aadhaarNumber}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Upload Front Copy</label>
-                    <input type="file" name="aadhaarDoc" accept="image/*" onChange={handleFileChange} className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Upload Front Copy</label>
+                    <input type="file" name="aadhaarDoc" accept="image/*" onChange={handleFileChange} className="w-full dark:bg-gray-950 dark:border-gray-700 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 dark:text-gray-400 hover:file:bg-slate-200" />
                   </div>
                 </div>
                 {previews.aadhaarDoc && (
@@ -413,26 +413,26 @@ export default function DriverProfilePage() {
               </div>
 
               {/* VEHICLE REGISTRATION (RC) & INSURANCE WITH EXPIRY DATES */}
-              <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+              <div className="card bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
-                  <h4 className="font-semibold text-slate-900 text-sm">Vehicle Registration & Insurance Compliance</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-gray-300 text-sm">Vehicle Registration & Insurance Compliance</h4>
                   <StatusBadge status={driverProfile?.vehicleDocumentStatus} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">RC Book Expiry Date</label>
-                    <input type="date" name="vehicleRegistrationExpiryDate" value={formData.vehicleRegistrationExpiryDate} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.vehicleRegistrationExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
+                    <label className="text-sm font-medium text-slate-700 dark:text-gray-400">RC Book Expiry Date</label>
+                    <input type="date" name="vehicleRegistrationExpiryDate" value={formData.vehicleRegistrationExpiryDate} onChange={handleInputChange} className={`w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.vehicleRegistrationExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
                     {errors.vehicleRegistrationExpiryDate && <p className="text-xs text-red-500 mt-1">{errors.vehicleRegistrationExpiryDate}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Insurance Expiry Date</label>
-                    <input type="date" name="insuranceExpiryDate" value={formData.insuranceExpiryDate} onChange={handleInputChange} className={`w-full rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.insuranceExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
+                    <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Insurance Expiry Date</label>
+                    <input type="date" name="insuranceExpiryDate" value={formData.insuranceExpiryDate} onChange={handleInputChange} className={`w-full dark:bg-gray-950 dark:border-gray-700 rounded-lg border p-2 text-sm focus:outline-slate-900 ${errors.insuranceExpiryDate ? 'border-red-500' : 'border-slate-200'}`} />
                     {errors.insuranceExpiryDate && <p className="text-xs text-red-500 mt-1">{errors.insuranceExpiryDate}</p>}
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Upload RC Document Copy</label>
-                  <input type="file" name="vehicleDoc" accept="image/*" onChange={handleFileChange} className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
+                  <label className="text-sm font-medium text-slate-700 dark:text-gray-400">Upload RC Document Copy</label>
+                  <input type="file" name="vehicleDoc" accept="image/*" onChange={handleFileChange} className="w-full dark:bg-gray-950 dark:border-gray-700 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 dark:text-gray-400 hover:file:bg-slate-200" />
                 </div>
                 {previews.vehicleDoc && (
                   <div className="mt-2 w-40 h-24 border rounded overflow-hidden bg-slate-50">

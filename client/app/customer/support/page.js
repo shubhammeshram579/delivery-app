@@ -90,9 +90,9 @@ export default function TicketStatusTracker() {
           {loading ? (
             <LoadingSpinner text="Loading orders..." />
           ) : activeTickets.length === 0 ? (
-            <div className="bg-white border border-slate-100 rounded-2xl p-6 text-center shadow-xs">
+            <div className="bg-white dark:bg-gray-900 dark:border-gray-800 border border-slate-100 rounded-2xl p-6 text-center shadow-xs">
               <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2" />
-              <p className="text-sm font-medium text-slate-800">
+              <p className="text-sm font-medium text-slate-800 dark:text-gray-400">
                 All caught up!
               </p>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -108,15 +108,15 @@ export default function TicketStatusTracker() {
                 return (
                   <div
                     key={ticket.id}
-                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs relative overflow-hidden"
+                    className="bg-white dark:bg-gray-900  border border-slate-200 dark:border-gray-700 rounded-2xl p-5 shadow-xs relative overflow-hidden"
                   >
                     {/* Top strip branding accent */}
                     <div className="flex justify-between items-start gap-4">
                       <div className="space-y-1">
-                        <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                        <span className="text-[10px] font-mono bg-slate-100 dark:bg-primary-600/20 dark:text-gray-400 text-slate-600 px-1.5 py-0.5 rounded">
                           #{ticket.ticketNumber}
                         </span>
-                        <h4 className="text-sm font-bold text-slate-900 pt-1">
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-gray-300 pt-1">
                           {ticket.subject}
                         </h4>
                         <p className="text-xs text-slate-400">
@@ -138,8 +138,8 @@ export default function TicketStatusTracker() {
 
                     {/* AI Context Summary generated during human handover */}
                     {ticket.aiSummary && (
-                      <div className="mt-4 p-3 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-100">
-                        <span className="font-bold block text-slate-800 mb-0.5">
+                      <div className="mt-4 p-3 bg-slate-50 dark:bg-gray-950 rounded-xl text-xs text-slate-500 border border-slate-100 dark:border-gray-800">
+                        <span className="font-bold block text-slate-800 dark:text-gray-400 mb-0.5">
                           Handover Reason:
                         </span>
                         {ticket.aiSummary}
@@ -158,14 +158,14 @@ export default function TicketStatusTracker() {
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
               Recently Solved
             </h3>
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs divide-y divide-slate-100">
+            <div className="bg-white dark:bg-gray-900 border border-slate-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-xs divide-y divide-slate-100 dark:divide-gray-700">
               {pastTickets.map((ticket) => (
                 <div
                   key={ticket.id}
-                  className="p-4 flex justify-between items-center text-xs hover:bg-slate-50/50 transition-colors"
+                  className="p-4 flex justify-between items-center text-xs hover:bg-slate-50/50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="min-w-0 pr-4">
-                    <p className="font-semibold text-slate-800 truncate">
+                    <p className="font-semibold text-slate-800 dark:text-gray-300 truncate">
                       {ticket.subject}
                     </p>
                     <p className="text-slate-400 text-[11px] mt-0.5">
