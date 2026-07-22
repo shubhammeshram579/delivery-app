@@ -35,7 +35,7 @@ export default function SupportWidget() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-40 w-12 h-12 bg-primary-600 hover:bg-primary-700 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105"
+          className="fixed bottom-16 sm:bottom-5 right-2 sm:right-5 z-40 w-12 h-12 bg-primary-600 hover:bg-primary-700 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105"
         >
           <LifeBuoy className="h-6 w-6 text-white" />
         </button>

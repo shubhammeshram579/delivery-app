@@ -54,16 +54,16 @@ export default function VerifyOtpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 dark:from-primary-700 dark:via-gray-900  dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center">
             <Truck className="h-5 w-5 text-white" />
           </div>
-          <span className="text-2xl font-bold text-gray-900">DeliverPro</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-gray-300">DeliverPro</span>
         </div>
         <div className="card p-8 text-center">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Verify your email</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-300 mb-2">Verify your email</h2>
           <p className="text-sm text-gray-500 mb-6">Enter the 6-digit code sent to <strong>{email}</strong></p>
           <ErrorAlert message={error} />
           <form onSubmit={handleSubmit} className="mt-6">
@@ -78,7 +78,7 @@ export default function VerifyOtpPage() {
                   value={digit}
                   onChange={(e) => handleChange(i, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(i, e)}
-                  className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 transition-colors"
+                  className="w-11 h-12 text-center text-lg font-bold dark:text-gray-800  border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 transition-colors"
                 />
               ))}
             </div>

@@ -55,7 +55,7 @@ export default function AIBookingAssistant({ onConfirm }) {
 
     {!isShowAi && <div>
       <div onClick={handelAiAssin} className="flex items-center gap-2 mb-4">
-        <div className="fixed bottom-28 sm:bottom-20 right-5 z-40 w-12 h-12 bg-primary-600 hover:bg-primary-700 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 text-white">
+        <div className="fixed bottom-36 sm:bottom-20 right-5 z-40 w-12 h-12 bg-primary-600 hover:bg-primary-700 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 text-white">
           <Sparkles className="h-4 w-4 text-white" />Ai
         </div>
       </div>

@@ -249,7 +249,7 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/register" className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium text-sm bg-gray-900 hover:bg-gray-800 text-white transition-colors">
+              <Link href="/register" className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium text-sm bg-gray-900 dark:bg-gray-800 hover:bg-gray-800 text-white transition-colors">
                 Become a Driver <ChevronRight className="h-4 w-4" />
               </Link>
             </div>

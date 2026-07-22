@@ -70,7 +70,7 @@ const onSubmit = async (data) => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 dark:from-primary-700 dark:via-gray-900  dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         
         {/* Admin Branding Logo */}
@@ -78,11 +78,11 @@ const onSubmit = async (data) => {
           <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary-500/20">
             <ShieldCheck className="h-5 w-5 text-white" />
           </div>
-          <span className="text-2xl font-bold text-black">DeliverPro <span className="text-primary-600 font-medium text-lg">Admin</span></span>
+          <span className="text-2xl font-bold text-black dark:text-gray-300">DeliverPro <span className="text-primary-600 font-medium text-lg">Admin</span></span>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">
+        <div className="card bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-300 mb-1">
             Register Administrative Authority
           </h2>
           <p className="text-sm text-gray-500 mb-6">Create an internal administrator console credential</p>
@@ -93,7 +93,7 @@ const onSubmit = async (data) => {
             
             {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400  mb-1.5">
                 Full Name
               </label>
               <input
@@ -110,7 +110,7 @@ const onSubmit = async (data) => {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                 Corporate Email
               </label>
               <input
@@ -128,7 +128,7 @@ const onSubmit = async (data) => {
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                 Phone Number
               </label>
               <input
@@ -145,7 +145,7 @@ const onSubmit = async (data) => {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">
                 Secure Password
               </label>
               <div className="relative">

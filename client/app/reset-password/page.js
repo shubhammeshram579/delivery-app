@@ -53,13 +53,13 @@ export default function ResetPasswordPage() {
   // No token — invalid access
   if (!resetToken) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 dark:from-primary-700 dark:via-gray-900  dark:to-gray-800 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="card p-8 text-center">
             <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <XCircle className="h-7 w-7 text-red-500" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Session Expired</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-300 mb-2">Session Expired</h2>
             <p className="text-sm text-gray-500 mb-6">
               Your password reset session is invalid or has expired. Please start again.
             </p>
@@ -73,26 +73,26 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 dark:from-primary-700 dark:via-gray-900  dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
             <Truck className="h-5 w-5 text-white" />
           </div>
-          <span className="text-2xl font-bold text-gray-900">DeliverPro</span>
+          <span className="text-2xl font-bold text-gray-900 dark:text-gray-300">DeliverPro</span>
         </div>
 
         <div className="card p-8">
           {!success ? (
             <>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Create new password</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-1 dark:text-gray-300">Create new password</h2>
               <p className="text-sm text-gray-500 mb-6">Your identity has been verified. Set a new password below.</p>
 
               {error && <div className="mb-4"><ErrorAlert message={error} /></div>}
 
               <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">New Password</label>
                   <div className="relative">
                     <input
                       type={showPass ? 'text' : 'password'}
@@ -108,7 +108,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">Confirm Password</label>
                   <div className="relative">
                     <input
                       type={showConfirmPass ? 'text' : 'password'}
@@ -133,7 +133,7 @@ export default function ResetPasswordPage() {
               <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="h-7 w-7 text-green-600" />
               </div>
-              <h2 className="text-lg font-bold text-gray-900 mb-2">Password Reset!</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-gray-300 mb-2">Password Reset!</h2>
               <p className="text-sm text-gray-500">
                 Your password has been changed successfully. Redirecting to login...
               </p>

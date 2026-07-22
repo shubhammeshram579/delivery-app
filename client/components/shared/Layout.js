@@ -26,6 +26,7 @@ import {
   User,
   ChevronRight,
   LifeBuoy,
+  PlusCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -41,15 +42,14 @@ const NAV = {
   customer: [
     { href: "/customer/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/customer/orders", label: "My Orders", icon: Package },
-    { href: "/customer/orders/new", label: "New Order", icon: MapPin },
+    { href: "/customer/orders/new", label: "New Order", icon: PlusCircle },
     { href: "/customer/support", label: "Support", icon: LifeBuoy },
     { href: "/customer/profile", label: "Profile", icon: User },
   ],
   driver: [
     { href: "/driver/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/driver/orders", label: "Available Orders", icon: Package },
+    { href: "/driver/orders", label: "Available", icon: Package },
     { href: "/driver/earnings", label: "Earnings", icon: Wallet },
-    // { href: "/driver/chat", label: "Messages", icon: MessageSquare },
     { href: "/driver/support", label: "Support", icon: LifeBuoy },
     { href: "/driver/profile", label: "Profile", icon: User },
   ],
@@ -58,10 +58,54 @@ const NAV = {
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/drivers", label: "Drivers", icon: Truck },
     { href: "/admin/orders", label: "Orders", icon: Package },
-    // { href: "/admin/analytics", label: "Analytics", icon: TrendingUp },
     { href: "/admin/support", label: "Support", icon: LifeBuoy },
   ],
 };
+
+// ── Bottom Navigation for Mobile (Customer & Driver) ──────
+export function BottomNav({ role }) {
+  const pathname = usePathname();
+  const nav = NAV[role] || NAV.customer;
+
+  // Don't render bottom navigation for admins on mobile
+  if (role === "admin") return null;
+
+  return (
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 px-2 py-1 pb-safe shadow-lg">
+      <div className="flex items-center justify-around">
+        {nav.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || (href !== `/${role}/dashboard` && pathname.startsWith(href));
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex flex-col items-center justify-center py-1.5 px-3 min-w-[64px] rounded-xl transition-all duration-200 ${
+                active
+                  ? "text-primary-600 dark:text-primary-400 font-semibold"
+                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
+            >
+              <div className="relative">
+                <Icon
+                  className={`h-5 w-5 transition-transform duration-200 ${
+                    active ? "scale-110 text-primary-600 dark:text-primary-400" : ""
+                  }`}
+                />
+                {active && (
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary-600 dark:bg-primary-400 rounded-full" />
+                )}
+              </div>
+              <span className="text-[10px] mt-1 truncate max-w-[68px]">
+                {label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
 
 // ── Sidebar ───────────────────────────────────────────────
 export function Sidebar({ role }) {
@@ -80,7 +124,9 @@ export function Sidebar({ role }) {
           <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
             <Truck className="h-4 w-4 text-white" />
           </div>
-          <span className="font-bold text-gray-900 dark:text-gray-100 text-lg">DeliverPro</span>
+          <span className="font-bold text-gray-900 dark:text-gray-100 text-lg">
+            DeliverPro
+          </span>
         </div>
       </div>
 
@@ -100,7 +146,11 @@ export function Sidebar({ role }) {
               }`}
             >
               <Icon
-                className={`h-4 w-4 ${active ? "text-primary-600 dark:text-primary-400" : "text-gray-400 dark:text-gray-500"}`}
+                className={`h-4 w-4 ${
+                  active
+                    ? "text-primary-600 dark:text-primary-400"
+                    : "text-gray-400 dark:text-gray-500"
+                }`}
               />
               {label}
               {active && (
@@ -133,12 +183,14 @@ export function Sidebar({ role }) {
             <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
               {user?.name}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user?.role}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+              {user?.role}
+            </p>
           </div>
         </div>
         <button
           onClick={() => dispatch(logoutUser())}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+          className="w-full flex items-center gap-3 mb-14 sm:mb-0 px-3 py-2.5 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
         >
           <LogOut className="h-4 w-4" />
           Sign out
@@ -154,10 +206,10 @@ export function Sidebar({ role }) {
         <SidebarContent />
       </aside>
 
-      {/* Mobile toggle */}
+      {/* Mobile toggle (Only shown for Admin or if Drawer is preferred) */}
       <button
         onClick={() => setOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-40 p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm"
+        className="lg:hidden fixed top-3 left-4 z-40 p-2 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border border-gray-200 dark:border-gray-800 rounded-lg shadow-sm"
       >
         <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" />
       </button>
@@ -184,33 +236,24 @@ export function Sidebar({ role }) {
   );
 }
 
+// ── Topbar ───────────────────────────────────────────────
 export function Topbar({ title }) {
   const dispatch = useDispatch();
   const router = useRouter();
 
   const unread = useSelector(selectUnreadCount);
-
   const user = useSelector(selectUser);
-
   const notifications = useSelector((state) => state.notifications.list);
 
   const [openNotifications, setOpenNotifications] = useState(false);
-
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
-  // ================================
-  // FETCH NOTIFICATIONS
-  // ================================
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
         setLoadingNotifications(true);
-
         const res = await userService.getNotifications();
-
         const notificationData = res?.data?.data?.notifications || [];
-
-        // save redux
         dispatch(setNotifications(notificationData));
       } catch (error) {
         console.log("Notification fetch error", error);
@@ -222,39 +265,26 @@ export function Topbar({ title }) {
     fetchNotifications();
   }, [dispatch]);
 
-  // ================================
-  // MARK SINGLE READ
-  // ================================
   const handleMarkRead = async (id) => {
     try {
-      // OPTIONAL API
       await userService.markOneNotificationRead(id);
-
       const updated = notifications.map((n) =>
-        n.id === id ? { ...n, isRead: true } : n,
+        n.id === id ? { ...n, isRead: true } : n
       );
-
       dispatch(setNotifications(updated));
     } catch (error) {
       console.log(error);
     }
   };
 
-  // ================================
-  // MARK ALL READ
-  // ================================
   const handleMarkAllRead = async () => {
     try {
-      // OPTIONAL API
       await userService.markNotificationsRead();
-
       const updated = notifications.map((n) => ({
         ...n,
         isRead: true,
       }));
-
       dispatch(setNotifications(updated));
-
       dispatch(markAllRead());
     } catch (error) {
       console.log(error);
@@ -264,61 +294,44 @@ export function Topbar({ title }) {
   const handleDeleteNotification = async (id) => {
     try {
       await userService.deleteNotification(id);
-
-      // remove from redux
       const updated = notifications.filter((n) => n.id !== id);
-
       dispatch(setNotifications(updated));
     } catch (error) {
       console.log(error);
     }
   };
 
-  // console.log("user", user);
-
   const handleNotificationNavigation = (notification) => {
-    // 1. Instantly mark as read
     handleMarkRead(notification.id);
-
-    const role = user?.role; // "customer", "driver", or "admin"
-    const type = notification?.type?.toLowerCase(); // "order", "payment", "chat", "system", "support"
+    const role = user?.role;
+    const type = notification?.type?.toLowerCase();
     const data = notification?.data || {};
 
-    // 2. Route dynamically based on Notification Type & User Role
     switch (type) {
-      // --- SUPPORT NOTIFICATIONS ---
-      // Everyone goes to their respective role-based support portal
       case "support":
         router.push(`/${role}/support`);
         break;
 
-      // --- SYSTEM NOTIFICATIONS ---
-      // Admins go to their system dashboard, customers/drivers stay on theirs
       case "system":
         if (role === "admin") {
-          router.push("/admin/drivers"); // or a specific admin logs route if you build one later
+          router.push("/admin/drivers");
         } else {
           router.push(`/${role}/dashboard`);
         }
         break;
 
-      // --- CHAT NOTIFICATIONS ---
-      // If you have a separate chat page, route there.
-      // Otherwise, since order chats live inside the order page, fall through to the order routes below.
       case "chat":
         if (data.orderId) {
           if (role === "admin") {
-            router.push(`/admin/orders`); // Admins view the main order tracking board
+            router.push(`/admin/orders`);
           } else {
-            router.push(`/${role}/orders/${data.orderId}`); // Drivers/Customers see specific chat context
+            router.push(`/${role}/orders/${data.orderId}`);
           }
         } else {
           router.push(`/${role}/dashboard`);
         }
         break;
 
-      // --- ORDER & PAYMENT NOTIFICATIONS ---
-      // Routed directly to the active order workflows
       case "order":
       case "payment":
         if (role === "driver" && data.orderId) {
@@ -328,11 +341,10 @@ export function Topbar({ title }) {
         } else if (role === "admin") {
           router.push(`/admin/orders`);
         } else {
-          router.push(`/${role}/orders`); // Fallback if no specific orderId is passed
+          router.push(`/${role}/orders`);
         }
         break;
 
-      // --- FALLBACK ---
       default:
         router.push(`/${role}/dashboard`);
         break;
@@ -340,16 +352,16 @@ export function Topbar({ title }) {
   };
 
   return (
-    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6">
+    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-6 pl-14 lg:pl-6 sticky top-0 z-20">
       {/* TITLE */}
-      <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{title}</h1>
+      <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        {title}
+      </h1>
 
       {/* RIGHT SECTION */}
       <div className="flex items-center gap-1">
-        {/* THEME TOGGLE */}
         <ThemeToggle />
 
-        {/* NOTIFICATION */}
         <div className="relative">
           <button
             onClick={() => setOpenNotifications((prev) => !prev)}
@@ -364,7 +376,6 @@ export function Topbar({ title }) {
             )}
           </button>
 
-          {/* DROPDOWN */}
           <NotificationDropdown
             open={openNotifications}
             onClose={() => setOpenNotifications(false)}
@@ -373,7 +384,6 @@ export function Topbar({ title }) {
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
             onDelete={handleDeleteNotification}
-            // OPEN BUTTON
             onOpenNotification={handleNotificationNavigation}
           />
         </div>
@@ -387,13 +397,20 @@ export function DashboardLayout({ children, role, title }) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar role={role} />
-      <div className="lg:ml-60 flex flex-col min-h-screen">
+
+      {/* pb-20 on mobile prevents content from being hidden behind the bottom bar */}
+      <div className="lg:ml-60 flex flex-col min-h-screen pb-20 lg:pb-0">
         <Topbar title={title} />
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6">{children}</main>
       </div>
 
-      {/* {role !== 'admin' && <SupportWidget />} */}
-      {role == "admin" ? <AIAdminAssistant /> : <SupportWidget />}
+      {/* Floating Support or AI Assistant */}
+      <div className="mb-14 lg:mb-0">
+        {role === "admin" ? <AIAdminAssistant /> : <SupportWidget />}
+      </div>
+
+      {/* App-like Bottom Navigation */}
+      <BottomNav role={role} />
     </div>
   );
 }

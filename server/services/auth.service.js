@@ -164,8 +164,6 @@ const register = async ({
   password,
   phone,
   role = "customer",
-
-  // driver fields
   vehicleType,
   vehicleNumber,
   licenseNumber,
@@ -201,17 +199,11 @@ const register = async ({
 
     // Create User
     const user = await User.create(
-      {
-        name,
-        email,
-        password,
-        phone,
-        role,
-      },
-      {
-        transaction,
-      },
+      { name, email, password, phone, role },
+      { transaction }
     );
+
+    let driver = null;
 
     // Create Driver Profile
     if (role === "driver") {
@@ -219,69 +211,54 @@ const register = async ({
         throw new ValidationError("Driver details required");
       }
 
-      await Driver.create(
+      driver = await Driver.create(
         {
           userId: user.id,
-
           vehicleType,
-
           vehicleNumber,
-
           licenseNumber,
-
           isVerified: false,
         },
-        {
-          transaction,
-        },
+        { transaction }
       );
     }
 
-    // Commit Transaction
+    // Commit Transaction FIRST for DB consistency
     await transaction.commit();
 
-    await notifyAdmins({
-      title: "👤 New Driver Registration",
-      body: `${user.name} has registered as a new driver and is waiting for verification.`,
-      type: "system",
-      data: {
-        userId: user.id,
-        driverId: driver.id,
-        driverName: user.name,
-        vehicleType,
-        vehicleNumber,
-      },
-    });
+    // Perform non-transactional post-registration steps safely
+    if (role === "driver" && driver) {
+      await notifyAdmins({
+        title: "👤 New Driver Registration",
+        body: `${user.name} has registered as a new driver and is waiting for verification.`,
+        type: "system",
+        data: {
+          userId: user.id,
+          driverId: driver.id,
+          driverName: user.name,
+          vehicleType,
+          vehicleNumber,
+        },
+      });
+    }
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
     await cacheSet(`otp:email:${email}`, otp, 10 * 60);
 
     await sendEmail({
       to: email,
       subject: "Verify Your Email",
-
       template: "verify-email",
-
-      data: {
-        name,
-        otp,
-      },
+      data: { name, otp },
     });
 
     // Generate Tokens
     const { accessToken, refreshToken } = generateTokens(user.id);
 
     await User.update(
-      {
-        refreshToken,
-      },
-      {
-        where: {
-          id: user.id,
-        },
-      },
+      { refreshToken },
+      { where: { id: user.id } }
     );
 
     return {
@@ -291,14 +268,14 @@ const register = async ({
         email: user.email,
         role: user.role,
       },
-
       accessToken,
-
       refreshToken,
     };
   } catch (error) {
-    await transaction.rollback();
-
+    // Only rollback if transaction hasn't finished yet
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     throw error;
   }
 };

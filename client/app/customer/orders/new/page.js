@@ -1176,7 +1176,7 @@ export default function NewOrderPage() {
       </div>
 
       {/* ── Sticky bottom bar — mobile only ──────────────── */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
+      <div className="sm:hidden fixed bottom-0 mb-8 left-0 right-0 z-40 dark:bg-gray-900 dark:border-gray-700 bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
         {priceEstimate && (
           <div className="flex items-center justify-between mb-2.5">
             <div className="text-xs text-gray-500">
