@@ -1,5 +1,4 @@
-// require('dotenv').config({ path: '../.env' });
-require('dotenv').config(); // no path needed - runs from server/ folder
+require('dotenv').config();
 
 module.exports = {
   development: {
@@ -16,8 +15,11 @@ module.exports = {
     url: process.env.DATABASE_URL,
     dialect: 'postgres',
     logging: false,
-    dialectOptions: {
-      ssl: { require: true, rejectUnauthorized: false },
-    },
+    dialectOptions: process.env.DB_SSL === 'true' ? {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    } : {},
   },
 };

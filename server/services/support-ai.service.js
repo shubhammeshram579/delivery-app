@@ -294,11 +294,6 @@
 // };
 
 
-/**
- * support-ai.service.js
- *
- * AI-first support triage rewritten for Google Gemini SDK.
- */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Order, Driver } = require('../models');
@@ -315,11 +310,13 @@ const getClient = () => {
 
 const MODEL = 'gemini-2.5-flash';
 
+// Expanded & modernized regex patterns
 const FORCE_ESCALATE_PATTERNS = [
   /accident/i, /injur/i, /hurt/i, /hospital/i,
   /fraud/i, /scam/i, /stolen/i, /theft/i,
   /didn'?t receive/i, /never (got|arrived|received)/i,
-  /wrong item/i, /wrong order/i, /damaged/i, /broken/i,
+  /wrong (item|order|product|package|delivery)/i, /delivered wrong/i, // Added missing variations
+  /damaged/i, /broken/i, /spoiled/i,
   /legal/i, /lawyer/i, /police/i, /sue/i,
   /money deducted/i, /charged.*not.*deliver/i, /double charged/i,
   /manual refund/i, /refund.*directly/i,
@@ -332,6 +329,7 @@ const FRUSTRATION_PATTERNS = [
   /never again/i, /disappointed/i, /angry/i, /furious/i,
   /!!!|\?\?\?/, /scam/i, /cheat/i, /waste of/i,
 ];
+
 const URGENT_PATTERNS = [
   /urgent/i, /emergency/i, /asap/i, /immediately/i, /right now/i, /accident/i, /injur/i,
 ];
@@ -367,7 +365,7 @@ const GEMINI_TOOLS = [
       },
       {
         name: 'escalate_to_human',
-        description: 'Escalate this conversation to a human admin due to safety, complex payment, or user request.',
+        description: 'Escalate this conversation to a human admin due to safety, complex payment, damaged/wrong products, or user request.',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -378,7 +376,7 @@ const GEMINI_TOOLS = [
             priority: {
               type: 'STRING',
               enum: ['low', 'normal', 'high', 'critical'],
-              description: 'critical = safety/accident/fraud, high = payment/refund, normal = general complaints, low = minor questions',
+              description: 'critical = safety/accident/fraud, high = payment/refund/wrong item, normal = general complaints, low = minor questions',
             },
             subject: { type: 'STRING', description: 'Short 5-8 word summary of the issue' },
             summary: { type: 'STRING', description: '2-3 sentence summary of what the user needs' },
@@ -393,8 +391,7 @@ const GEMINI_TOOLS = [
 const executeTool = async (name, input) => {
   switch (name) {
     case 'get_order_status': {
-      // FIX: Validate input value before execution query
-      if (!input || !input.order_number || input.order_number.trim() === "") {
+      if (!input || !input.order_number || input.order_number.trim() === '') {
         return { error: 'Missing order_number parameter. Please ask the user to provide their order number.' };
       }
       const order = await Order.findOne({
@@ -433,12 +430,13 @@ const executeTool = async (name, input) => {
 };
 
 const processSupportMessage = async ({ message, userType, conversationHistory = [] }) => {
+  // 1. Mandatory Regex Pre-Check for Escalation
   if (shouldForceEscalate(message)) {
     return {
       resolved: false,
       escalation: {
         category: guessCategory(message),
-        priority: 'critical',
+        priority: 'high',
         subject: message.slice(0, 60),
         summary: `User message flagged for mandatory human review: "${message}"`,
       },
@@ -448,7 +446,7 @@ const processSupportMessage = async ({ message, userType, conversationHistory = 
 
   const systemInstruction = userType === 'driver' ? DRIVER_SYSTEM_PROMPT : CUSTOMER_SYSTEM_PROMPT;
   const ai = getClient();
-  
+
   const modelInstance = ai.getGenerativeModel({
     model: MODEL,
     systemInstruction,
@@ -469,56 +467,90 @@ const processSupportMessage = async ({ message, userType, conversationHistory = 
 
   while (iterations < maxIterations) {
     iterations++;
-    
-    const result = await modelInstance.generateContent({ contents });
-    const response = await result.response;
-    const functionCalls = response.functionCalls;
 
-    if (functionCalls && functionCalls.length > 0) {
-      const call = functionCalls[0];
+    try {
+      const result = await modelInstance.generateContent({ contents });
+      const response = await result.response;
+      const functionCalls = response.functionCalls;
 
-      if (call.name === 'escalate_to_human') {
-        return {
-          resolved: false,
-          escalation: call.args,
-          sentiment: detectSentiment(message),
-        };
+      if (functionCalls && functionCalls.length > 0) {
+        const call = functionCalls[0];
+
+        if (call.name === 'escalate_to_human') {
+          // Safeguard escalation arguments against missing properties
+          const args = call.args || {};
+          return {
+            resolved: false,
+            escalation: {
+              category: args.category || guessCategory(message),
+              priority: args.priority || 'high',
+              subject: args.subject || message.slice(0, 60),
+              summary: args.summary || message,
+            },
+            sentiment: detectSentiment(message),
+          };
+        }
+
+        const toolResultData = await executeTool(call.name, call.args);
+
+        // Append assistant's function call turn
+        contents.push({
+          role: 'model',
+          parts: [{ functionCall: call }],
+        });
+
+        // Append tool execution response turn
+        contents.push({
+          role: 'function',
+          parts: [
+            {
+              functionResponse: {
+                name: call.name,
+                response: toolResultData,
+              },
+            },
+          ],
+        });
+
+        continue;
       }
 
-      const toolResultData = await executeTool(call.name, call.args);
+      const textReply = response.text();
+      return {
+        resolved: true,
+        reply: textReply,
+        sentiment: detectSentiment(message),
+      };
+    } catch (err) {
+      if (logger && logger.error) {
+        logger.error('[Support AI Service Error]:', err);
+      } else {
+        console.error('[Support AI Service Error]:', err);
+      }
 
-      // Save call state
-      contents.push({
-        role: 'model',
-        parts: [{ functionCall: call }]
-      });
-
-      // Provide execution result response path back to context cleanly
-      contents.push({
-        role: 'function',
-        parts: [{
-          functionResponse: {
-            name: call.name,
-            response: toolResultData
-          }
-        }]
-      });
-
-      continue;
+      // Safe Fallback to Human Escalation if AI execution fails in production
+      return {
+        resolved: false,
+        escalation: {
+          category: guessCategory(message),
+          priority: 'high',
+          subject: message.slice(0, 60),
+          summary: `Automatic fallback escalation due to AI processing error. Original message: "${message}"`,
+        },
+        sentiment: detectSentiment(message),
+      };
     }
-
-    const textReply = response.text();
-    return { 
-      resolved: true, 
-      reply: textReply, 
-      sentiment: detectSentiment(message) 
-    };
   }
 
-  // Fallback to text request if loop iterations are spent without pure escalation intent
+  // Fallback if iteration cap is reached
   return {
-    resolved: true,
-    reply: "I can look up your order status for you! Could you please provide your order number (e.g., ORD-1234)?",
+    resolved: false,
+    escalation: {
+      category: guessCategory(message),
+      priority: 'normal',
+      subject: message.slice(0, 60),
+      summary: message,
+    },
     sentiment: detectSentiment(message),
   };
 };
@@ -530,7 +562,7 @@ const guessCategory = (text) => {
   if (/suspend|block|verif|license/.test(lower)) return 'account';
   if (/gps|app|bug|error|crash/.test(lower)) return 'technical';
   if (/driver/.test(lower)) return 'driver';
-  if (/order|delivery|deliver/.test(lower)) return 'order';
+  if (/order|delivery|deliver|wrong|product|item/.test(lower)) return 'order';
   return 'other';
 };
 
@@ -544,13 +576,16 @@ You can answer these common questions directly:
 - How do I pay online? (explain: Razorpay - card, UPI, wallet - tap Pay Now on order detail page)
 - Coupon not working? (ask which coupon and explain to check expiry/minimum order value)
 
-You must escalate to a human (use escalate_to_human tool) for:
-- Customer didn't receive their order / wrong item delivered / damaged item
-- Refund requests requiring manual processing
-- Payment charged but order not delivered / double charged
-- Any accident, injury, or safety concern
-- Fraud reports or legal complaints
-- Anything you're not confident about
+CRITICAL INSTRUCTION - MANDATORY ESCALATION:
+You MUST immediately trigger the escalate_to_human tool if the user mentions:
+1. Wrong product, wrong item, wrong order, or missing items.
+2. Damaged or broken items received.
+3. Refund requests requiring manual processing.
+4. Payment charged but order not delivered / double charged.
+5. Any accident, injury, or safety concern.
+6. Fraud reports or legal complaints.
+
+Do NOT attempt to resolve these yourself. Always call escalate_to_human immediately.
 
 Be warm, brief, and helpful. If you can answer directly, do so in 2-3 sentences.`;
 

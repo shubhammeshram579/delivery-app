@@ -12,7 +12,10 @@ const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 
 
-const { sequelize, connectDB } = require('./config/database');
+const { sequelize } = require('./models');
+const { connectDB } = require('./config/database');
+
+// const { sequelize, connectDB } = require('./config/database');
 const { connectRedis } = require('./config/redis');
 const { initSocket } = require('./sockets');
 const { errorHandler,globalErrorHandler } = require('./middleware/error.middleware');
@@ -41,27 +44,32 @@ const server = http.createServer(app);
 app.use(helmet());
 app.use(compression());
 
-
 const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001'
-];
+  'https://localhost',       // Nginx reverse proxy
+  'http://localhost',        // HTTP Nginx
+  'http://localhost:3000',   // Next.js direct dev
+  'http://localhost:5000',   // Express direct dev
+  process.env.CLIENT_URL,    // Production URL from .env
+].filter(Boolean);
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like Postman)
-    if (!origin) return callback(null, true);
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like Postman, mobile apps, or server-to-server)
+      if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.log(`[CORS Blocked Origin]: ${origin}`); // Helps debug if another origin hits it
+        return callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  })
+);
 
 // app.use(cors({
 //   origin: process.env.CLIENT_URL || "http://localhost:3001",
@@ -84,14 +92,14 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
 // Global rate limiter
-// const limiter = rateLimit({
-//   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-//   max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
-//   standardHeaders: true,
-//   legacyHeaders: false,
-//   message: { success: false, message: 'Too many requests, please try again later.' },
-// });
-// app.use('/api', limiter);
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later.' },
+});
+app.use('/api', limiter);
 
 // ── Routes ────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -127,10 +135,11 @@ async function startServer() {
   try {
     await connectDB();
 
-      // 👇 ADD THIS
+    // Syncs all tables whenever DB_SYNC=true is set in .env
     if (process.env.DB_SYNC === 'true') {
+      console.log('🔄 Syncing database models...');
       await sequelize.sync({ alter: true });
-      console.log('✅ Database synced');
+      console.log('✅ Database synced successfully (All tables created)!');
     }
 
     await connectRedis();

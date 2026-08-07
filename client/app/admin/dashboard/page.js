@@ -17,6 +17,24 @@ export default function AdminDashboard() {
   const [revenue, setRevenue] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const isDark =
+  typeof document !== "undefined" &&
+  document.documentElement.getAttribute("data-theme") === "dark";
+
+  const tooltipStyle = {
+  contentStyle: {
+    backgroundColor: isDark ? "#1f2937" : "#fff",
+    border: isDark ? "1px solid #374151" : "1px solid #e5e7eb",
+    borderRadius: "8px",
+  },
+  labelStyle: {
+    color: isDark ? "#9ca3af" : "#111827",
+  },
+  itemStyle: {
+    color: isDark ? "#9ca3af" : "#111827",
+  },
+};
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -79,7 +97,7 @@ export default function AdminDashboard() {
                 {/* <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /> */}
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v}`} />
-                <Tooltip formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']} />
+                <Tooltip   {...tooltipStyle} formatter={(v) => [`₹${v.toLocaleString()}`, 'Revenue']} />
                 <Area type="monotone" dataKey="revenue" stroke="#0ea5e9" strokeWidth={2} fill="url(#revenueGrad)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -96,7 +114,7 @@ export default function AdminDashboard() {
                 {/* <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /> */}
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} />
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} />
-                <Tooltip />
+                <Tooltip   {...tooltipStyle} />
                 <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="Orders" />
               </BarChart>
             </ResponsiveContainer>

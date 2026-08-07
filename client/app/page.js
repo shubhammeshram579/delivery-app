@@ -130,7 +130,7 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 pt-20 pb-24 text-center">
-        <div className="inline-flex items-center gap-2 bg-primary-50 text-primary-700 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
+        <div className="inline-flex items-center gap-2 bg-primary-50 dark:bg-primary-600/20 text-primary-700 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
           <CheckCircle className="h-3.5 w-3.5" />
           Trusted by 50,000+ customers across the city
         </div>

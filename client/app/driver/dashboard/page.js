@@ -26,7 +26,7 @@ export default function DriverDashboard() {
   const { goOnline, updateLocation } = useSocket();
   const { location } = useGeolocation(isAvailable); // watch when available
   // Inside component
-const { activeOffer, timeLeft, accept, reject } = useOrderOffers();
+  const { activeOffer, timeLeft, accept, reject } = useOrderOffers();
 
  
 
@@ -110,23 +110,23 @@ const { activeOffer, timeLeft, accept, reject } = useOrderOffers();
         <div className="card p-5 mb-6 border-l-4 border-l-primary-500">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-800 dark:text-gray-300">Active Delivery</h3>
-            <StatusBadge status={activeOrder.status} />
+            <StatusBadge status={activeOrder?.status} />
           </div>
           <div className="space-y-2 mb-4">
             <div className="flex items-start gap-2 text-sm">
               <MapPin className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-              <p className="text-gray-600">{activeOrder.pickupAddress}</p>
+              <p className="text-gray-600">{activeOrder?.pickupAddress}</p>
             </div>
             <div className="flex items-start gap-2 text-sm">
               <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-gray-600">{activeOrder.dropAddress}</p>
+              <p className="text-gray-600">{activeOrder?.dropAddress}</p>
             </div>
           </div>
-          <Link href={`/driver/orders/${activeOrder.id}`} className="btn-primary w-full text-center block">
+          <Link href={`/driver/orders/${activeOrder?.id}`} className="btn-primary w-full text-center block">
             Continue Delivery
           </Link>
         </div>
-      )}
+      )} 
 
       {/* Pending orders pool */}
       <div className="card">

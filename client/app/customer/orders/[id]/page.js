@@ -633,7 +633,7 @@ useEffect(() => {
                         )}
                       </div>
                       <div className="pb-1">
-                        <p className={`text-sm font-medium ${done ? "text-gray-900" : "text-gray-400"}`}>
+                        <p className={`text-sm font-medium ${done ? "text-gray-900 dark:text-gray-400" : "text-gray-400"}`}>
                           {step.label}
                         </p>
                         {ts && (
@@ -982,7 +982,7 @@ useEffect(() => {
                           className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
                             isMe
                               ? "bg-primary-600 text-white rounded-br-sm"
-                              : "bg-gray-100 text-gray-800 dark:text-gray-300 rounded-bl-sm"
+                              : "bg-gray-100 text-gray-800 rounded-bl-sm"
                           }`}
                         >
                           {m.message}

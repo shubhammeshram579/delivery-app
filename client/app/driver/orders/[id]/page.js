@@ -115,6 +115,8 @@ export default function DriverOrderDetailPage() {
   const order = useSelector(selectCurrentOrder);
   const user = useSelector(selectUser);
 
+  console.log("ooordert",order)
+
   // GPS — watch mode ON (continuous updates)
   const { location, error: gpsError } = useGeolocation(true);
   const locationRef = useRef(null); // always holds latest location for interval
@@ -661,13 +663,29 @@ export default function DriverOrderDetailPage() {
   };
 
 
+  // const hadelShowProofModal = () => {
+  // if (order?.paymentMethod === "cash" && !order?.cashCollected) {
+  //   toast.error("Cash collection is pending! Please collect cash first.");
+  //   return; 
+  // }
+  // setShowProofModal(true);
+  // }
+
   const hadelShowProofModal = () => {
+  // Cash payment but cash not collected
   if (order?.paymentMethod === "cash" && !order?.cashCollected) {
     toast.error("Cash collection is pending! Please collect cash first.");
-    return; 
+    return;
   }
+
+  // Online payment is still pending
+  if (order?.payment?.status === "pending") {
+    toast.error("Payment is pending! Please complete the payment first.");
+    return;
+  }
+
   setShowProofModal(true);
-  }
+};
 
   // ─────────────────────────────────────────────────────────
   // Derived state
@@ -1091,7 +1109,7 @@ export default function DriverOrderDetailPage() {
                           className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
                             isMe
                               ? "bg-primary-600 text-white rounded-br-sm"
-                              : "bg-gray-100 text-gray-800 dark:text-gray-300 rounded-bl-sm"
+                              : "bg-gray-100 text-gray-800 rounded-bl-sm"
                           }`}
                         >
                           {m.message}

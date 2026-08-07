@@ -148,7 +148,8 @@ const schema = z
     // Move structural validations to superRefine so they don't block passenger bookings
     receiverName: z.string().optional().or(z.literal("")),
     receiverPhone: z.string().optional().or(z.literal("")),
-    receiverAlternatePhone: z.string().optional().or(z.literal("")),
+    // receiverAlternatePhone: z.string().optional().or(z.literal("")),
+    receiverEmail: z.string().optional().or(z.literal("")),
 
     packageCategory: z.enum(
       [
@@ -239,15 +240,29 @@ const schema = z
       }
 
       // 3. Validate Receiver Alternate Phone (Optional structure)
+      // if (
+      //   data.receiverAlternatePhone &&
+      //   data.receiverAlternatePhone !== "" &&
+      //   !/^[6-9]\d{9}$/.test(data.receiverAlternatePhone)
+      // ) {
+      //   ctx.addIssue({
+      //     code: z.ZodIssueCode.custom,
+      //     message: "Enter a valid 10-digit mobile number",
+      //     path: ["receiverAlternatePhone"],
+      //   });
+      // }
+
+
+      // 3. Validate Receiver Email (Optional)
       if (
-        data.receiverAlternatePhone &&
-        data.receiverAlternatePhone !== "" &&
-        !/^[6-9]\d{9}$/.test(data.receiverAlternatePhone)
+        data.receiverEmail &&
+        data.receiverEmail.trim() !== "" &&
+        !z.string().email().safeParse(data.receiverEmail).success
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Enter a valid 10-digit mobile number",
-          path: ["receiverAlternatePhone"],
+          message: "Enter a valid email address",
+          path: ["receiverEmail"],
         });
       }
 
@@ -661,7 +676,7 @@ export default function NewOrderPage() {
                         </div>
                       </Field>
 
-                      <Field
+                      {/* <Field
                         label="Alternate Number"
                         hint="optional"
                         error={errors.receiverAlternatePhone?.message}
@@ -686,6 +701,20 @@ export default function NewOrderPage() {
                             }}
                           />
                         </div>
+                      </Field> */}
+
+                      <Field
+                        label="Receiver Email"
+                        // hint="optional"
+                        required
+                        error={errors.receiverEmail?.message}
+                      >
+                        <input
+                          type="email"
+                          placeholder="example@domain.com"
+                          className={`input-field ${errors.receiverEmail ? "border-red-400" : ""}`}
+                          {...register("receiverEmail")}
+                        />
                       </Field>
                     </div>
                   </div>

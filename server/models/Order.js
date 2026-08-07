@@ -105,6 +105,16 @@ receiverAlternatePhone: {
   type: DataTypes.STRING,
   defaultValue: null,
 },
+receiverEmail: {
+  type: DataTypes.STRING,
+  defaultValue: null,
+  allowNull: true,
+  validate: {
+    isEmail: {
+      msg: "Must be a valid email address",
+    },
+  },
+},
 
 deliveryOtpVerified: {
   type: DataTypes.BOOLEAN,

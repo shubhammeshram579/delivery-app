@@ -209,8 +209,6 @@ const findNearestDriver = async (pickupLat, pickupLng,orderType) => {
 // Create Order
 // ─────────────────────────────────────────────
 
-
-
 const createOrder = async (customerId, orderData) => {
   const transaction = await sequelize.transaction();
 
@@ -225,6 +223,7 @@ const createOrder = async (customerId, orderData) => {
       orderType
     } = orderData;
 
+    // 1. Validations
     if (!orderType || !['passenger', 'delivery'].includes(orderType)) {
       throw new ValidationError(400, "Valid orderType ('passenger' or 'delivery') is required");
     }
@@ -238,12 +237,19 @@ const createOrder = async (customerId, orderData) => {
       }
     }
 
-    const routeInfo = await getRouteInfo(pickupLat, pickupLng, dropLat, dropLng);
+    // 2. Route & Pricing calculation
+    let routeInfo;
+    try {
+      routeInfo = await getRouteInfo(pickupLat, pickupLng, dropLat, dropLng);
+    } catch (routeErr) {
+      console.error("[CreateOrder Error] getRouteInfo failed:", routeErr.message);
+      throw new ValidationError(500, "Failed to calculate route distance. Please check Google Maps API key / billing.");
+    }
+
     const pricing = calculatePrice(routeInfo.distanceKm, packageWeight, orderType);
     const nearestDriver = await findNearestDriver(pickupLat, pickupLng, orderType);
 
-    // REAL-WORLD FIX: Initial status should be "pending" if awaiting driver acceptance. 
-    // "accepted" should only happen after the driver clicks 'Accept' on their app.
+    // 3. Create Order
     const order = await Order.create(
       {
         customerId,
@@ -255,60 +261,76 @@ const createOrder = async (customerId, orderData) => {
         ...pricing,
         driverId: nearestDriver?.id || null,
         status: "pending", 
-        acceptedAt: null, // This changes when the driver actually confirms
+        acceptedAt: null,
       },
       { transaction }
     );
 
+    // 4. Create Payment Record
     const paymentProviderMap = { online: "razorpay", cash: "cod" };
     await Payment.create(
       {
         orderId: order.id,
         customerId,
         amount: pricing.totalAmount,
-        method: paymentProviderMap[paymentMethod],
+        method: paymentProviderMap[paymentMethod] || "cod",
         status: paymentMethod === "cash" ? "pending_cash_collection" : "pending",
       },
       { transaction }
     );
 
+    // 5. Update Driver Availability
     if (nearestDriver) {
-      // Temporarily lock driver so other orders don't ping them while deciding
       await nearestDriver.update({ isAvailable: false }, { transaction });
     }
 
-    // Critical Error: Immediate action needed by admin
+    // 6. Admin Notification (if no driver)
     if (!nearestDriver) {
-      await notifyAdmins({
-        title: "⚠️ Driver Not Found",
-        body: `No nearby drivers available for Order #${order.orderNumber}`,
-        type: "system",
-        data: { orderId: order.id },
-      });
+      try {
+        await notifyAdmins({
+          title: "⚠️ Driver Not Found",
+          body: `No nearby drivers available for Order #${order.orderNumber || order.id}`,
+          type: "system",
+          data: { orderId: order.id },
+        });
+      } catch (notifyErr) {
+        console.warn("[CreateOrder Warning] Failed to notify admins:", notifyErr.message);
+      }
     }
 
+    // 7. COMMIT DATABASE TRANSACTION FIRST
     await transaction.commit();
 
-    // REAL-WORLD UPDATE: Instead of spamming the admin immediately, 
-    // we schedule a background job to check on this order in exactly 5 minutes.
-    if (nearestDriver) {
-      await orderEscalationQueue.add(
-        "checkOrderAcceptance", 
-        { orderId: order.id }, 
-        { delay: 5 * 60 * 1000} // 5 Minutes Delay in milliseconds 1 * 60 * 1000
-      );
+    // -------------------------------------------------------------
+    // POST-COMMIT OPERATIONS (Wrap in separate try/catch so DB isn't affected)
+    // -------------------------------------------------------------
+    try {
+      if (nearestDriver) {
+        await orderEscalationQueue.add(
+          "checkOrderAcceptance", 
+          { orderId: order.id }, 
+          { delay: 5 * 60 * 1000 }
+        );
+      }
+
+      await cacheDelByPattern(`orders:customer:${customerId}*`);
+      await cacheDelByPattern(`orders:driver:*`);
+    } catch (postCommitErr) {
+      // Order is already successfully created in DB! Do NOT break the API response for non-critical queue/cache errors.
+      console.error("[CreateOrder Post-Commit Non-Fatal Error]:", postCommitErr.message);
     }
 
-    await cacheDelByPattern(`orders:customer:${customerId}*`);
-    await cacheDelByPattern(`orders:driver:*`);
-
     return order;
+
   } catch (error) {
-    await transaction.rollback();
+    // SAFE ROLLBACK CHECK: Only roll back if transaction is NOT yet committed
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
+    console.error("[CreateOrder Error]:", error);
     throw error;
   }
 };
-
 // ─────────────────────────────────────────────
 // Get Orders
 // ─────────────────────────────────────────────
@@ -452,27 +474,26 @@ const acceptOrder = async (orderId, driverUserId) => {
       throw new NotFoundError("Driver profile");
     }
 
-    // Profile completion check
     if (!driver.profileCompleted) {
       throw new NotFoundError(
         "Please complete your profile before accepting orders."
       );
     }
 
-    // Admin verification check
     if (!driver.isVerified) {
       throw new NotFoundError(
         "Your profile is under review. Please wait for admin approval to start accepting orders."
       );
     }
-    
+
     if (!driver.isAvailable) {
       throw new ValidationError("You are already on delivery");
     }
 
-    // Ensure the driver has a valid recorded location
     if (driver.currentLat === null || driver.currentLng === null) {
-      throw new ValidationError("Could not fetch your current GPS location. Please turn on location services.");
+      throw new ValidationError(
+        "Could not fetch your current GPS location. Please turn on location services."
+      );
     }
 
     const order = await Order.findByPk(orderId, {
@@ -488,26 +509,21 @@ const acceptOrder = async (orderId, driverUserId) => {
       throw new ValidationError("Order already accepted");
     }
 
-    // ── 👇 STRICT MATCHING VALIDATIONS ──
-
-    // 1. If it's a passenger ride, only allow Car drivers
     if (order.orderType === "passenger" && driver.vehicleType !== "car") {
       throw new ValidationError(
         `Passenger rides can only be accepted by Car drivers. Your current vehicle registered is a ${driver.vehicleType}.`
       );
     }
 
-    // 2. If it's a package delivery, ensure exact vehicle alignment
-    if (order.orderType === "delivery" && order.vehicleType !== driver.vehicleType) {
+    if (
+      order.orderType === "delivery" &&
+      order.vehicleType !== driver.vehicleType
+    ) {
       throw new ValidationError(
         `This delivery order requires a ${order.vehicleType}. You cannot accept it with your ${driver.vehicleType}.`
       );
     }
 
-
-    // ── 👇 REAL-WORLD CONDITION BUSINESS LOGIC START ──
-    
-    // 1. Calculate real-time distance from Driver to Pickup Location
     const driverToPickupDistance = calculateDistance(
       driver.currentLat,
       driver.currentLng,
@@ -515,95 +531,97 @@ const acceptOrder = async (orderId, driverUserId) => {
       order.pickupLng
     );
 
-    // 2. Define business configurations for vehicle limits (in kilometers)
-    let maxAllowedPickupDistance = 5; // default fallback is 5 km
+    let maxAllowedPickupDistance = 5;
 
-    if (driver.vehicleType === 'bike' || driver.vehicleType === 'scooter') {
-      // Bikes handling short food or emergency medicine runs
-      if (order.packageCategory === 'food') {
-        maxAllowedPickupDistance = 3; // Strict 3km to keep food warm
+    if (driver.vehicleType === "bike" || driver.vehicleType === "scooter") {
+      if (order.packageCategory === "food") {
+        maxAllowedPickupDistance = 3;
       } else {
-        maxAllowedPickupDistance = 5; 
+        maxAllowedPickupDistance = 5;
       }
-    } else if (driver.vehicleType === 'car' || driver.vehicleType === 'van') {
-      maxAllowedPickupDistance = 10; // Cars and vans have a wider radius
-    } else if (driver.vehicleType === 'truck') {
-      maxAllowedPickupDistance = 50; // Trucks travel farther for high-payout cargo journeys
+    } else if (
+      driver.vehicleType === "car" ||
+      driver.vehicleType === "van"
+    ) {
+      maxAllowedPickupDistance = 10;
+    } else if (driver.vehicleType === "truck") {
+      maxAllowedPickupDistance = 50;
     }
 
-    // 3. Enforce the calculated restriction
     if (driverToPickupDistance > maxAllowedPickupDistance) {
       throw new ValidationError(
-        `This order is too far away (${driverToPickupDistance.toFixed(1)} km). Your vehicle type (${driver.vehicleType}) is restricted to a maximum pickup range of ${maxAllowedPickupDistance} km to preserve fuel profitability.`
+        `This order is too far away (${driverToPickupDistance.toFixed(
+          1
+        )} km). Your vehicle type (${
+          driver.vehicleType
+        }) is restricted to a maximum pickup range of ${maxAllowedPickupDistance} km.`
       );
     }
 
-    // ── 👆 REAL-WORLD CONDITION BUSINESS LOGIC END ──
-
-    // Update Order details
     await order.update(
       {
         driverId: driver.id,
         status: "accepted",
-        driverStatus: 'going_to_pickup',
+        driverStatus: "going_to_pickup",
         acceptedAt: new Date(),
       },
       { transaction }
     );
 
-    // Set driver status to unavailable
-    await driver.update(
-      { isAvailable: false },
-      { transaction }
-    );
+    await driver.update({ isAvailable: false }, { transaction });
 
+    // Commit DB changes
     await transaction.commit();
 
-    await notifyAdmins({
-      title: "🚚 Order Accepted",
-      body: `${driver.vehicleType} driver accepted Order #${order.orderNumber}`,
-      type: "order",
-      data: {
-        orderId,
-        driverId: driver.id,
-      },
-    });
+    // Side effects post-commit
+    try {
+      await notifyAdmins({
+        title: "🚚 Order Accepted",
+        body: `${driver.vehicleType} driver accepted Order #${order.orderNumber}`,
+        type: "order",
+        data: {
+          orderId,
+          driverId: driver.id,
+        },
+      });
 
-    // Clear stale caching lists
-    await cacheDelByPattern(`orders:*`);
+      await cacheDelByPattern(`orders:*`);
 
-    // Contextual notifications based on ride type
-    const isPassenger = order.orderType === "passenger";
-    await sendNotification(order.customerId, {
-      title: isPassenger ? "Driver is on the way!" : "Driver Assigned",
-      body: isPassenger 
-        ? `Your driver is heading to your location.` 
-        : `Your delivery order #${order.orderNumber} has been accepted by a ${driver.vehicleType} driver.`,
-      type: "order",
-      data: { orderId },
-    });
+      const isPassenger = order.orderType === "passenger";
+      await sendNotification(order.customerId, {
+        title: isPassenger ? "Driver is on the way!" : "Driver Assigned",
+        body: isPassenger
+          ? `Your driver is heading to your location.`
+          : `Your delivery order #${order.orderNumber} has been accepted by a ${driver.vehicleType} driver.`,
+        type: "order",
+        data: { orderId },
+      });
+    } catch (postCommitErr) {
+      console.warn("[acceptOrder] Post-commit warning:", postCommitErr.message);
+    }
 
     return order;
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     throw error;
   }
 };
+
+
 
 const updateOrderStatus = async (
   orderId,
   driverUserId,
   status,
-  extras = {},
+  extras = {}
 ) => {
   const transaction = await sequelize.transaction();
 
   try {
-    // Find Driver
     const driver = await Driver.findOne({
-      where: {
-        userId: driverUserId,
-      },
+      where: { userId: driverUserId },
       transaction,
     });
 
@@ -611,7 +629,6 @@ const updateOrderStatus = async (
       throw new NotFoundError("Driver profile");
     }
 
-    // Find Order
     const order = await Order.findByPk(orderId, {
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -621,31 +638,24 @@ const updateOrderStatus = async (
       throw new NotFoundError("Order");
     }
 
-    // Ownership Check
     if (String(order.driverId) !== String(driver.id)) {
       throw new AuthorizationError("Not your order");
     }
 
-    // Status Transition Rules
     const VALID_TRANSITIONS = {
       accepted: ["picked_up", "cancelled"],
       picked_up: ["in_transit"],
       in_transit: ["delivered"],
     };
 
-    // Invalid Transition
     if (!VALID_TRANSITIONS[order.status]?.includes(status)) {
       throw new ValidationError(
-        `Cannot transition from ${order.status} to ${status}`,
+        `Cannot transition from ${order.status} to ${status}`
       );
     }
 
-    // Base data update dictionary
-    const updateData = {
-      status,
-    };
+    const updateData = { status };
 
-    // ── 👇 NEW: AUTO-MAP HIGH LEVEL STATUS TO DRIVER STATUS ──
     const STATUS_TO_DRIVER_STATUS = {
       accepted: "going_to_pickup",
       picked_up: "picked_up",
@@ -656,26 +666,18 @@ const updateOrderStatus = async (
     if (STATUS_TO_DRIVER_STATUS[status]) {
       updateData.driverStatus = STATUS_TO_DRIVER_STATUS[status];
     }
-    // ─────────────────────────────────────────────────────────
 
-    // Picked Up
     if (status === "picked_up") {
       updateData.pickedUpAt = new Date();
     }
 
-    // In Transit
     if (status === "in_transit") {
-      updateData.inTransitAt = new Date(); 
-      // Note: Make sure 'inTransitAt' exists in your actual db migration tracking timestamps!
+      updateData.inTransitAt = new Date();
     }
 
-    // Delivered
     if (status === "delivered") {
-      // Prevent Duplicate Earnings
       const existingEarning = await Earnings.findOne({
-        where: {
-          orderId: order.id,
-        },
+        where: { orderId: order.id },
         transaction,
       });
 
@@ -685,16 +687,14 @@ const updateOrderStatus = async (
 
       updateData.deliveredAt = new Date();
 
-      // Fee Calculation
       const platformFee = parseFloat(
-        (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2),
+        (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2)
       );
 
       const netEarning = parseFloat(
-        (order.deliveryFee - platformFee).toFixed(2),
+        (order.deliveryFee - platformFee).toFixed(2)
       );
 
-      // Create Earnings
       await Earnings.create(
         {
           driverId: driver.id,
@@ -703,23 +703,17 @@ const updateOrderStatus = async (
           platformFee,
           netEarning,
         },
-        {
-          transaction,
-        },
+        { transaction }
       );
 
-      // Update Driver Stats
       await driver.increment(
         {
           totalDeliveries: 1,
           totalEarnings: netEarning,
         },
-        {
-          transaction,
-        },
+        { transaction }
       );
 
-      // Check Active Orders
       const activeOrders = await Order.count({
         where: {
           driverId: driver.id,
@@ -730,184 +724,49 @@ const updateOrderStatus = async (
         transaction,
       });
 
-      // Driver Available
       if (activeOrders <= 1) {
         await driver.update(
-          {
-            isAvailable: true,
-          },
-          {
-            transaction,
-          },
+          { isAvailable: true },
+          { transaction }
         );
       }
     }
 
-    // Delivery Proof
     if (extras.deliveryProofImage) {
       updateData.deliveryProofImage = extras.deliveryProofImage;
     }
 
-    // 👇 Update Order (This updates both 'status' and our new 'driverStatus' simultaneously)
-    await order.update(updateData, {
-      transaction,
-    });
+    await order.update(updateData, { transaction });
 
-    // Commit
+    // Commit DB changes
     await transaction.commit();
 
-    // await notifyAdmins({
-    //   title: "✅ Delivery Completed",
-    //   body: `Order #${order.orderNumber} delivered successfully`,
-    //   type: "order",
-    //   data: {
-    //     orderId,
-    //   },
-    // });
+    // Side effects post-commit
+    try {
+      await cacheDelByPattern(`orders:customer:${order.customerId}*`);
+      await cacheDelByPattern(`orders:driver:*`);
 
-    // Clear Cache
-    await cacheDelByPattern(`orders:customer:${order.customerId}*`);
-    await cacheDelByPattern(`orders:driver:*`);
-
-    // Notification
-    await sendNotification(order.customerId, {
-      title: `Order ${status.replace(/_/g, " ")}`,
-      body: `Your order #${order.orderNumber} is now ${status.replace(/_/g, " ")}.`,
-      type: "order",
-      data: {
-        orderId,
-      },
-    });
+      await sendNotification(order.customerId, {
+        title: `Order ${status.replace(/_/g, " ")}`,
+        body: `Your order #${order.orderNumber} is now ${status.replace(
+          /_/g,
+          " "
+        )}.`,
+        type: "order",
+        data: { orderId },
+      });
+    } catch (postCommitErr) {
+      console.warn("[updateOrderStatus] Post-commit warning:", postCommitErr.message);
+    }
 
     return order;
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     throw error;
   }
 };
-
-// ─────────────────────────────────────────────
-// Cancel Order
-// ─────────────────────────────────────────────
-
-// const cancelOrder = async (orderId, userId, reason) => {
-//   if (!reason) {
-//     throw new ValidationError("Cancellation reason required");
-//   }
-
-//   const transaction = await sequelize.transaction();
-
-//   try {
-//     // Find Order
-//     const order = await Order.findOne({
-//       where: {
-//         id: orderId,
-
-//         customerId: userId,
-//       },
-
-//       transaction,
-
-//       // lock: true,
-//       lock: transaction.LOCK.UPDATE,
-//     });
-
-//     if (!order) {
-//       throw new NotFoundError("Order");
-//     }
-
-//     // Status Validation
-//     if (!["pending", "accepted"].includes(order.status)) {
-//       throw new ValidationError("Order cannot be cancelled at this stage");
-//     }
-
-//     // Update Order
-//     await order.update(
-//       {
-//         status: "cancelled",
-
-//         cancelledAt: new Date(),
-
-//         cancelReason: reason,
-//       },
-
-//       {
-//         transaction,
-//       },
-//     );
-
-//     // Driver Handling
-//     if (order.driverId) {
-//       const driver = await Driver.findByPk(order.driverId, {
-//         transaction,
-//       });
-
-//       if (driver) {
-//         // Check Active Orders
-//         const activeOrders = await Order.count({
-//           where: {
-//             driverId: driver.id,
-
-//             status: {
-//               [Op.in]: ["accepted", "picked_up", "in_transit"],
-//             },
-//           },
-
-//           transaction,
-//         });
-
-//         if (activeOrders <= 1) {
-//           await driver.update(
-//             {
-//               isAvailable: true,
-//             },
-
-//             {
-//               transaction,
-//             },
-//           );
-//         }
-
-//         // Notify Driver
-//         await sendNotification(driver.userId, {
-//           title: "Order Cancelled",
-
-//           body: `Order #${order.orderNumber} was cancelled by customer.`,
-
-//           type: "order",
-
-//           data: {
-//             orderId,
-//           },
-//         });
-//       }
-//     }
-
-//     // Commit
-//     await transaction.commit();
-
-//     await notifyAdmins({
-//       title: "❌ Order Cancelled",
-//       body: `Customer cancelled Order #${order.orderNumber}`,
-//       type: "order",
-//       data: {
-//         orderId,
-//         reason,
-//       },
-//     });
-
-//     // Clear Cache
-//     await cacheDelByPattern(`orders:customer:${userId}*`);
-
-//     await cacheDelByPattern(`orders:driver:*`);
-
-//     return order;
-//   } catch (error) {
-//     await transaction.rollback();
-
-//     throw error;
-//   }
-// };
 
 
 
@@ -917,14 +776,15 @@ const cancelOrder = async (orderId, userId, reason) => {
   }
 
   const transaction = await sequelize.transaction();
-  
-  // Create placeholders to pass data out of the transaction block safely
+
+  // Scope variables to carry data outside the transaction safely
   let refundTriggered = false;
   let refundId = null;
   let orderData = null;
+  let driverUserIdToNotify = null;
 
   try {
-    // Find Order
+    // 1. Find Order
     const order = await Order.findOne({
       where: { id: orderId, customerId: userId },
       transaction,
@@ -935,12 +795,12 @@ const cancelOrder = async (orderId, userId, reason) => {
       throw new NotFoundError("Order");
     }
 
-    // Status Validation
+    // 2. Status Validation
     if (!["pending", "accepted"].includes(order.status)) {
       throw new ValidationError("Order cannot be cancelled at this stage");
     }
 
-    // Update Order
+    // 3. Update Order
     await order.update(
       {
         status: "cancelled",
@@ -950,7 +810,7 @@ const cancelOrder = async (orderId, userId, reason) => {
       { transaction }
     );
 
-    // Driver Handling
+    // 4. Driver Handling
     if (order.driverId) {
       const driver = await Driver.findByPk(order.driverId, { transaction });
       if (driver) {
@@ -966,34 +826,36 @@ const cancelOrder = async (orderId, userId, reason) => {
           await driver.update({ isAvailable: true }, { transaction });
         }
 
-        await sendNotification(driver.userId, {
-          title: "Order Cancelled",
-          body: `Order #${order.orderNumber} was cancelled by customer.`,
-          type: "order",
-          data: { orderId },
-        });
+        // Store for post-commit notification (DO NOT CALL ASYNC NOTIFICATIONS INSIDE TRANSACTION)
+        driverUserIdToNotify = driver.userId;
       }
     }
 
-    // Automated Refund Check 
-    if (order.paymentMethod === 'online') {
-      const payment = await Payment.findOne({ 
-        where: { orderId, status: 'success' },
-        transaction 
+    // 5. Automated Refund Check
+    if (order.paymentMethod === "online") {
+      const payment = await Payment.findOne({
+        where: { orderId, status: "success" },
+        transaction,
       });
 
       if (payment) {
         try {
-          const refund = await getRazorpay().payments.refund(payment.razorpayPaymentId, {
-            amount: Math.round(payment.amount * 100),
-            notes: { reason: 'Order cancelled by user', orderId },
-          });
+          const refund = await getRazorpay().payments.refund(
+            payment.razorpayPaymentId,
+            {
+              amount: Math.round(payment.amount * 100),
+              notes: { reason: "Order cancelled by user", orderId },
+            }
+          );
 
-          await payment.update({ 
-            status: 'refunded', 
-            refundId: refund.id, 
-            refundedAt: new Date() 
-          }, { transaction });
+          await payment.update(
+            {
+              status: "refunded",
+              refundId: refund.id,
+              refundedAt: new Date(),
+            },
+            { transaction }
+          );
 
           refundTriggered = true;
           refundId = refund.id;
@@ -1003,36 +865,53 @@ const cancelOrder = async (orderId, userId, reason) => {
       }
     }
 
-    // Save basic order data to use outside the try block before committing
-    orderData = { id: order.id, orderNumber: order.orderNumber, customerId: order.customerId };
+    // Save order details to use post-commit
+    orderData = {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      customerId: order.customerId,
+    };
 
-    // Commit changes safely
+    // 6. COMMIT DB CHANGES
     await transaction.commit();
-
   } catch (error) {
-    // This will now ONLY run if an error happens BEFORE committing
-    await transaction.rollback();
+    // SAFE ROLLBACK: Prevents "Transaction cannot be rolled back because it has been finished"
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     throw error;
   }
 
-  // ── SAFE ZONE: Run everything else after successful commit ──
+  // ── SAFE ZONE: Operations after successful database commit ──
   try {
+    // Notify Driver
+    if (driverUserIdToNotify) {
+      await sendNotification(driverUserIdToNotify, {
+        title: "Order Cancelled",
+        body: `Order #${orderData.orderNumber} was cancelled by customer.`,
+        type: "order",
+        data: { orderId },
+      });
+    }
+
+    // Handle Refunds Notifications
     if (refundTriggered) {
       await notifyAdmins({
         title: "💰 Refund Initiated",
         body: `Automatic refund initiated for Cancelled Order #${orderData.orderNumber}.`,
         type: "payment",
-        data: { orderId: orderData.id, refundId }
+        data: { orderId: orderData.id, refundId },
       });
 
       await sendNotification(orderData.customerId, {
         title: "Refund Initiated",
         body: `Your refund for Order #${orderData.orderNumber} has been initiated automatically.`,
         type: "payment",
-        data: { orderId }
+        data: { orderId },
       });
     }
 
+    // Admin Notification
     await notifyAdmins({
       title: "❌ Order Cancelled",
       body: `Customer cancelled Order #${orderData.orderNumber}`,
@@ -1040,21 +919,20 @@ const cancelOrder = async (orderId, userId, reason) => {
       data: { orderId, reason },
     });
 
+    // Cache Cleardown
     await cacheDelByPattern(`orders:customer:${userId}*`);
     await cacheDelByPattern(`orders:driver:*`);
 
-    // Fetch the updated state to return to your client
-    const updatedOrder = await Order.findByPk(orderId, { 
-      include: [{ model: Payment , as: 'payment' }] 
+    // Fetch and return updated order
+    const updatedOrder = await Order.findByPk(orderId, {
+      include: [{ model: Payment, as: "payment" }],
     });
-    
+
     return updatedOrder;
   } catch (postCommitError) {
-    // Log failures from notifications, cache cleanups, or queries so your API doesn't crash 
-    // after the core database records have already updated successfully.
     console.error("Post-commit background tasks failed:", postCommitError);
-    
-    // Fallback safely so the frontend still receives a response
+
+    // Fallback response
     return await Order.findByPk(orderId);
   }
 };
@@ -1093,24 +971,30 @@ const validateDriverOrder = async (
 const uploadDeliveryProof = async (orderId, driverUserId, file) => {
   const transaction = await sequelize.transaction();
 
+  // Scope variables needed post-commit
+  let updatedOrder = null;
+  let orderData = null;
+
   try {
     const { order, driver } = await validateDriverOrder(
       orderId,
       driverUserId,
-      transaction,
+      transaction
     );
 
     if (order.status !== "in_transit") {
       throw new ValidationError("Order must be in transit to upload proof");
     }
 
-    // ── 👇 MODIFIED: ONLY REQUIRE DROP-OFF OTP FOR COURIER PACKAGES ──
+    // ── ONLY REQUIRE DROP-OFF OTP FOR COURIER PACKAGES ──
     if (order.orderType === "delivery" && !order.deliveryOtpVerified) {
       throw new ValidationError("Receiver OTP verification required first");
     }
 
-    if(order.paymentMethod == "cash" && !order.cashCollected){
-      throw new ValidationError("Cash collection must be completed first before uploading proof");
+    if (order.paymentMethod === "cash" && !order.cashCollected) {
+      throw new ValidationError(
+        "Cash collection must be completed first before uploading proof"
+      );
     }
 
     const existingEarning = await Earnings.findOne({
@@ -1123,29 +1007,34 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
     }
 
     if (!file) {
-      const errorMsg = order.orderType === "passenger" 
-        ? "Trip drop-off safety proof photo is required" 
-        : "Delivery proof image is required";
+      const errorMsg =
+        order.orderType === "passenger"
+          ? "Trip drop-off safety proof photo is required"
+          : "Delivery proof image is required";
       throw new ValidationError(errorMsg);
     }
 
     const proofUrl = file?.path || null;
 
     const platformFee = parseFloat(
-      (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2),
+      (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2)
     );
-    const netEarning = parseFloat((order.deliveryFee - platformFee).toFixed(2));
+    const netEarning = parseFloat(
+      (order.deliveryFee - platformFee).toFixed(2)
+    );
 
-    await order.update(
+    // Update Order
+    updatedOrder = await order.update(
       {
         deliveryProofImage: proofUrl,
         status: "delivered",
         driverStatus: "delivered",
         deliveredAt: new Date(),
       },
-      { transaction },
+      { transaction }
     );
 
+    // Create Earnings
     await Earnings.create(
       {
         driverId: driver.id,
@@ -1154,62 +1043,93 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
         platformFee,
         netEarning,
       },
-      { transaction },
+      { transaction }
     );
 
+    // Update Driver
     await driver.increment(
       { totalDeliveries: 1, totalEarnings: netEarning },
-      { transaction },
+      { transaction }
     );
 
     await driver.update({ isAvailable: true }, { transaction });
 
+    // Snapshot lightweight values needed for post-commit tasks
+    orderData = {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      customerId: order.customerId,
+      orderType: order.orderType,
+    };
+
+    // 1. COMMIT TRANSACTION
     await transaction.commit();
-
-    await cacheDelByPattern(`orders:*`);
-
-    // Send dynamic notification texts
-    const isPassenger = order.orderType === "passenger";
-
-    await notifyAdmins({
-      title: isPassenger ? "🚗 Trip Completed Successfully!" : "📦 Order Delivered!",
-       body: isPassenger 
-        ? `Your ride #${order.orderNumber} has arrived safely.`
-        : `Your order #${order.orderNumber} has been delivered.`,
-      type: "order",
-      data: {
-        orderId:order.id
-      },
-    });
-
-    await sendNotification(order.customerId, {
-      title: isPassenger ? "🚗 Trip Completed Successfully!" : "📦 Order Delivered!",
-      body: isPassenger 
-        ? `Your ride #${order.orderNumber} has arrived safely.`
-        : `Your order #${order.orderNumber} has been delivered.`,
-      type: "order",
-      data: { orderId: order.id },
-    });
-
-    return order;
   } catch (error) {
-    await transaction.rollback();
+    // 🛑 BULLETPROOF ROLLBACK GUARD
+    // Sequelize sets transaction.finished to a string like 'commit' or 'rollback'
+    const isFinished = 
+      typeof transaction.isFinished === 'function'
+        ? transaction.isFinished()
+        : Boolean(transaction.finished);
+
+    if (!isFinished) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error("Rollback failed silently (transaction already handled):", rollbackError.message);
+      }
+    }
+
+    // Re-throw the original DB/Validation error so your controller handles the actual issue
     throw error;
   }
+
+  // ── SAFE ZONE: Post-Commit Side Effects ──
+  try {
+    await cacheDelByPattern(`orders:*`);
+
+    const isPassenger = orderData.orderType === "passenger";
+    const notificationTitle = isPassenger
+      ? "🚗 Trip Completed Successfully!"
+      : "📦 Order Delivered!";
+    const notificationBody = isPassenger
+      ? `Your ride #${orderData.orderNumber} has arrived safely.`
+      : `Your order #${orderData.orderNumber} has been delivered.`;
+
+    await notifyAdmins({
+      title: notificationTitle,
+      body: notificationBody,
+      type: "order",
+      data: { orderId: orderData.id },
+    });
+
+    await sendNotification(orderData.customerId, {
+      title: notificationTitle,
+      body: notificationBody,
+      type: "order",
+      data: { orderId: orderData.id },
+    });
+  } catch (postCommitError) {
+    console.error("Post-commit tasks failed in uploadDeliveryProof:", postCommitError);
+  }
+
+  return updatedOrder;
 };
 
 
 const markCashCollected = async (orderId, driverUserId) => {
   const transaction = await sequelize.transaction();
 
+  let orderData = null;
+
   try {
-    const { order } = await validateDriverOrder(
+    const { order, driver } = await validateDriverOrder(
       orderId,
       driverUserId,
-      transaction,
+      transaction
     );
 
-    if (order.paymentMethod !== "cash") {
+    if (order.paymentMethod !== "cash" && order.paymentMethod !== "cod") {
       throw new ValidationError("This order uses online payment");
     }
 
@@ -1217,16 +1137,18 @@ const markCashCollected = async (orderId, driverUserId) => {
       throw new ValidationError("Cash already marked as collected");
     }
 
-    // 1. Update the order status
+    // 1. Update order status
     await order.update(
       {
         cashCollected: true,
         cashCollectedAt: new Date(),
+        // Optional: Update paymentStatus if present in your model schema
+        paymentStatus: "paid", 
       },
-      { transaction },
+      { transaction }
     );
 
-    // 2. Update the payment records
+    // 2. Update payment records
     await Payment.update(
       {
         status: "success",
@@ -1236,30 +1158,66 @@ const markCashCollected = async (orderId, driverUserId) => {
       {
         where: { orderId: order.id },
         transaction,
-      },
+      }
     );
 
+    // Snapshot complete data required for notification payloads
+    orderData = {
+      id: order.id,
+      orderNumber: order.orderNumber || order.order_number || `#${order.id}`,
+      totalAmount: order.totalAmount || order.grandTotal || order.amount || 0,
+      driverName: driver?.name || driver?.fullName || `Driver #${driverUserId}`,
+    };
+
+    // 3. COMMIT TRANSACTION
     await transaction.commit();
-    await cacheDelByPattern(`orders:*`);
-
-    // 3. Notify Admins for Cash Auditing (Triggered after successful commit)
-    // Using type: "payment" so it hits the payment filters in your system
-    await notifyAdmins({
-      title: "💰 Cash Collected by Driver",
-      body: `Driver collected cash for order #${order.orderNumber}. Amount needs reconciliation.`,
-      type: "payment", 
-      data: {
-        orderId: order.id,
-        amount: order.totalAmount, // Helps the admin see the money volume immediately
-        driverId: driverUserId
-      },
-    });
-
-    return true;
   } catch (error) {
-    await transaction.rollback();
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
     throw error;
   }
+
+  // ── SAFE ZONE: Post-Commit Side Effects ──
+
+  // 1. Invalidate Caches
+  try {
+    await cacheDelByPattern(`orders:*`);
+  } catch (cacheErr) {
+    console.error("[Cache] Invalidation error:", cacheErr);
+  }
+
+  // 2. Dispatch Admin Real-Time & Push Notification
+  try {
+    const notificationPayload = {
+      title: "💰 Cash Collected by Driver",
+      body: `${orderData.driverName} collected cash for Order ${orderData.orderNumber}. Amount: ₹${orderData.totalAmount}`,
+      type: "payment",
+      data: {
+        orderId: String(orderData.id),
+        amount: String(orderData.totalAmount),
+        driverId: String(driverUserId),
+        event: "CASH_COLLECTED",
+      },
+    };
+
+    // Trigger Admin Notification
+    await notifyAdmins(notificationPayload);
+
+    // Optional: If you use Socket.IO directly in your app context
+    if (global.io) {
+      global.io.to("admin_room").emit("support:admin:notification", notificationPayload);
+    }
+  } catch (postCommitError) {
+    // Log complete stack trace so you can debug FCM/Socket issues directly in production
+    console.error("[Notification Error] Failed to send cash collection notification:", {
+      error: postCommitError.message,
+      stack: postCommitError.stack,
+      orderId: orderData?.id,
+    });
+  }
+
+  return true;
 };
 
 const generatePickupOtp = async (orderId, driverUserId) => {
@@ -1325,19 +1283,31 @@ const generateDeliveryOtp = async (orderId, driverUserId) => {
     throw new ValidationError("Order must be in transit");
   }
 
-  // ── 👇 NEW CONDITION: Skip OTP generation if it's a passenger ──
+  // ── Skip OTP generation if it's a passenger ──
   if (order.orderType === "passenger") {
     throw new ValidationError("Passenger rides do not require drop-off OTP verification.");
   }
 
+  // ── Ensure receiver email exists ──
+  if (!order.receiverEmail) {
+    throw new ValidationError("Receiver email is missing for this order");
+  }
+
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
+  // Store OTP in cache with 10-minute expiry (600s)
   await cacheSet(`delivery-otp:${order.id}`, otp, 600);
 
-  console.log(`delevery:otp ${otp}`)
-
-  // Send SMS to receiver phone
-  // Twilio / MSG91
+  // Send Email to receiver
+  await sendEmail({
+    to: order.receiverEmail,
+    subject: "Delivery OTP — DeliverPro",
+    template: "verify-email", // or your custom delivery email template
+    data: {
+      name: order.receiverName || "Customer",
+      otp,
+    },
+  });
 
   return true;
 };
@@ -1346,18 +1316,23 @@ const verifyDeliveryOtp = async (orderId, driverUserId, otp) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { order, driver } = await validateDriverOrder(
+    const { order } = await validateDriverOrder(
       orderId,
       driverUserId,
       transaction,
     );
 
+    if (order.status !== "in_transit") {
+      throw new ValidationError("Order must be in transit to complete delivery");
+    }
+
     const storedOtp = await cacheGet(`delivery-otp:${order.id}`);
 
     if (!storedOtp || storedOtp !== otp) {
-      throw new ValidationError("Invalid OTP");
+      throw new ValidationError("Invalid or expired OTP");
     }
 
+    // Update order status to completed
     await order.update(
       {
         deliveryOtpVerified: true,

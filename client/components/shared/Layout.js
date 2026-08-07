@@ -174,7 +174,7 @@ export function Sidebar({ role }) {
                 className="object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-primary-100 dark:bg-primary-500/20 flex items-center justify-center text-primary-700 dark:text-primary-400 text-sm font-semibold">
+              <div className="w-full h-full bg-primary-100 dark:bg-primary-500/20 flex items-center justify-center text-primary-700 dark:text-primary-500 text-sm font-semibold">
                 {user?.name?.[0]}
               </div>
             )}

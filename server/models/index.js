@@ -1,3 +1,5 @@
+const { sequelize } = require('../config/database');
+
 const User = require('./User');
 const Driver = require('./Driver');
 const Order = require('./Order');
@@ -77,5 +79,5 @@ AssignmentHistory.belongsTo(Driver, { foreignKey: 'driverId', as: 'driver', cons
 
 
 module.exports = {
-  User, Driver, Order, Payment,Location, Earnings, Notification, ChatMessage,SupportTicket,SupportMessage,AssignmentHistory
+  sequelize , User, Driver, Order, Payment,Location, Earnings, Notification, ChatMessage,SupportTicket,SupportMessage,AssignmentHistory
 };

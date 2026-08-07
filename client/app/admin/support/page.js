@@ -84,8 +84,10 @@ export default function AdminSupportPage() {
 
   // Real-time new ticket alerts
   useEffect(() => {
-    if (!socket?.current) return;
-    socket.current.emit("support:admin:subscribe");
+    const socketRef = socket?.current;
+    if (!socketRef) return;
+
+    socketRef.emit("support:admin:subscribe");
 
     const handler = (data) => {
       toast(`New ${data.priority} ticket: ${data.subject}`, {
@@ -100,16 +102,15 @@ export default function AdminSupportPage() {
       loadTickets();
     };
 
-    socket.current.on("support:new-ticket", handler);
+    socketRef.on("support:new-ticket", handler);
     return () => {
-      socket.current?.off("support:new-ticket", handler);
+      socketRef.off("support:new-ticket", handler);
     };
   }, [socket, loadTickets]);
 
   return (
     <DashboardLayout role="admin" title="Support Center">
       {selectedId ? (
-        // Render Details inside the exact same Layout
         <TicketDetail
           ticketId={selectedId}
           onBack={() => {
@@ -118,7 +119,6 @@ export default function AdminSupportPage() {
           }}
         />
       ) : (
-        // Otherwise render main Ticket List
         <div className="space-y-5">
           {stats && (
             <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
@@ -274,36 +274,43 @@ function TicketDetail({ ticketId, onBack }) {
     load();
   }, [load]);
 
+  // Auto-scroll to latest message
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Real-time messages sync
+  // Socket setup for room subscription and real-time message stream
   useEffect(() => {
-    if (!socket?.current) return;
-    socket.current.emit("support:join", { ticketId });
+    const socketRef = socket?.current;
+    if (!socketRef) return;
+
+    socketRef.emit("support:join", { ticketId });
 
     const handler = (msg) => {
       if (String(msg.ticketId) !== String(ticketId)) return;
+
       setMessages((prev) => {
-        const checkExists = prev.some(
-          (m) => m.id === msg.id || (m.tempId && m.tempId === msg.tempId),
+        const exists = prev.some(
+          (m) => String(m.id) === String(msg.id) || (m.tempId && m.tempId === msg.tempId)
         );
-        if (checkExists) return prev;
+        if (exists) {
+          return prev.map((m) => (m.tempId && m.tempId === msg.tempId ? msg : m));
+        }
         return [...prev, msg];
       });
     };
 
-    socket.current.on("support:message", handler);
+    socketRef.on("support:message", handler);
+
     return () => {
-      socket.current?.off("support:message", handler);
-      socket.current?.emit("support:leave", { ticketId });
+      socketRef.off("support:message", handler);
+      socketRef.emit("support:leave", { ticketId });
     };
   }, [ticketId, socket]);
 
   const send = async () => {
-    if (!input.trim()) return;
-    const currentText = input;
+    if (!input.trim() || sending) return;
+    const currentText = input.trim();
     setInput("");
     setSending(true);
 
@@ -316,25 +323,23 @@ function TicketDetail({ ticketId, onBack }) {
         tempId,
         senderType: "admin",
         message: currentText,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       },
     ]);
 
     try {
-      if (socket?.current?.connected) {
-        socket.current.emit("support:message", {
-          ticketId,
-          message: currentText,
-          senderType: "admin",
-          tempId,
-        });
-      } else {
-        await supportService.replyToTicket(ticketId, currentText);
+      const res = await supportService.replyToTicket(ticketId, currentText);
+      const createdMsg = res.data?.data?.message || res.data?.message;
+
+      if (createdMsg) {
+        setMessages((prev) =>
+          prev.map((m) => (m.tempId === tempId ? createdMsg : m))
+        );
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to send message:", err);
       toast.error("Message delivery failed");
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setMessages((prev) => prev.filter((m) => m.tempId !== tempId));
     } finally {
       setSending(false);
     }
@@ -342,9 +347,10 @@ function TicketDetail({ ticketId, onBack }) {
 
   const assignToMe = async () => {
     try {
-      await supportService.assignTicket(ticketId);
+      const res = await supportService.assignTicket(ticketId);
+      const updatedAdmin = res.data?.data?.assignedAdmin || res.data?.assignedAdmin;
+      setTicket((prev) => ({ ...prev, assignedAdmin: updatedAdmin }));
       toast.success("Ticket assigned to you");
-      load();
     } catch {
       toast.error("Failed to assign");
     }
@@ -352,21 +358,23 @@ function TicketDetail({ ticketId, onBack }) {
 
   const updateStatus = async (status) => {
     try {
+      setTicket((prev) => ({ ...prev, status }));
       await supportService.updateTicket(ticketId, { status });
       toast.success(`Marked as ${STATUS_LABEL[status]}`);
-      load();
     } catch {
       toast.error("Failed to update");
+      load();
     }
   };
 
   const updatePriority = async (priority) => {
     try {
+      setTicket((prev) => ({ ...prev, priority }));
       await supportService.updateTicket(ticketId, { priority });
       toast.success("Priority updated");
-      load();
     } catch {
       toast.error("Failed to update");
+      load();
     }
   };
 
@@ -384,7 +392,7 @@ function TicketDetail({ ticketId, onBack }) {
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-700">
           <button
             onClick={onBack}
-            className="p-1.5 hover:bg-gray-100 rounded-lg "
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
           >
             <ArrowLeft className="h-4 w-4 text-gray-500" />
           </button>
@@ -403,7 +411,7 @@ function TicketDetail({ ticketId, onBack }) {
 
         <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-gray-50 dark:bg-gray-900">
           {ticket.aiSummary && (
-            <div className="p-3 bg-blue-50  border border-blue-100 rounded-lg text-xs text-blue-700">
+            <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
               <p className="font-semibold mb-1">AI Summary</p>
               {ticket.aiSummary}
             </div>

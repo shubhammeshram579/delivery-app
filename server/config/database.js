@@ -16,18 +16,18 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
     acquire: 30000,
     idle: 10000,
   },
-  dialectOptions: {
-    ssl: process.env.NODE_ENV === 'production'
-      ? { require: true, rejectUnauthorized: false }
-      : false,
-  },
+  dialectOptions: process.env.DB_SSL === 'true' ? {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
+  } : {},
 });
 
 const connectDB = async () => {
   try {
     await sequelize.authenticate();
-    logger.info('PostgreSQL connection established');
-    // Do NOT call sequelize.sync() — use migrations instead (npm run migrate)
+    logger.info('PostgreSQL connection established successfully');
   } catch (error) {
     logger.error('Unable to connect to database:', error);
     throw error;

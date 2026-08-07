@@ -14,7 +14,7 @@ export default function AdminDriversPage() {
   const [loading, setLoading] = useState(true);
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   
@@ -222,11 +222,11 @@ export default function AdminDriversPage() {
       {/* COMPLIANCE REVIEW MODAL WINDOW WITH EXPIRY INPUTS */}
       {selectedUser && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-3xl w-full max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-slate-200 dark:border-gray-800 max-w-3xl w-full max-h-[90vh] flex flex-col">
             
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
+            <div className="p-4 border-b border-slate-100 dark:border-gray-800 flex justify-between items-center bg-slate-50 dark:bg-gray-900 rounded-t-xl">
               <div>
-                <h3 className="font-bold text-slate-900 text-lg">Reviewing: {selectedUser.name}</h3>
+                <h3 className="font-bold text-slate-900 dark:text-gray-300 text-lg">Reviewing: {selectedUser.name}</h3>
                 <p className="text-xs text-slate-500">Verify system record metadata against physical documents</p>
               </div>
               <button onClick={() => setSelectedUser(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition">
@@ -238,9 +238,9 @@ export default function AdminDriversPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
                 {/* LICENSE CARD DOC WITH EXPIRY CONTROL */}
-                <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50 flex flex-col justify-between space-y-3">
+                <div className="border border-slate-200  dark:border-gray-800  rounded-lg p-3 bg-slate-50/50 dark:bg-gray-800 flex flex-col justify-between space-y-3">
                   <div>
-                    <span className="text-xs font-bold uppercase text-slate-500 block mb-1">Driving License</span>
+                    <span className="text-xs font-bold uppercase text-slate-500 dark:text-gray-400 block mb-1">Driving License</span>
                     {selectedUser.driverProfile?.licenseUrl ? (
                       <a href={selectedUser.driverProfile.licenseUrl} target="_blank" rel="noreferrer" className="block relative aspect-video border rounded overflow-hidden bg-black group">
                         <img src={selectedUser.driverProfile.licenseUrl} alt="DL" className="w-full h-full object-contain" />
@@ -251,21 +251,21 @@ export default function AdminDriversPage() {
                   </div>
                   
                   <div>
-                    <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1 mb-1">
+                    <label className="text-[11px] font-semibold text-slate-600 dark:text-gray-400 flex items-center gap-1 mb-1">
                       <Calendar className="h-3 w-3" /> Expiry Date
                     </label>
                     <input 
                       type="date"
                       value={reviewPayload.licenseExpiry}
                       onChange={(e) => setReviewPayload(p => ({ ...p, licenseExpiry: e.target.value }))}
-                      className="w-full text-xs border border-slate-200 p-1.5 rounded bg-white focus:outline-slate-900"
+                      className="w-full text-xs border border-slate-200 dark:border-gray-700 p-1.5 rounded bg-white dark:bg-gray-800 focus:outline-slate-900"
                     />
                   </div>
 
                   <select 
                     value={reviewPayload.licenseStatus} 
                     onChange={(e) => setReviewPayload(p => ({ ...p, licenseStatus: e.target.value }))}
-                    className="w-full border rounded-md p-1.5 text-xs bg-white focus:outline-slate-900"
+                    className="w-full border rounded-md p-1.5 text-xs bg-white dark:bg-gray-800 dark:text-gray-400 focus:outline-slate-900"
                   >
                     <option value="pending">🕒 Pending</option>
                     <option value="approved">✅ Approve</option>
@@ -274,9 +274,9 @@ export default function AdminDriversPage() {
                 </div>
 
                 {/* AADHAAR CARD DOC (No Expiry Needed for Identity Cards) */}
-                <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50 flex flex-col justify-between space-y-3">
+                <div className="border border-slate-200 dark:border-gray-800 rounded-lg p-3 bg-slate-50/50 dark:bg-gray-800 flex flex-col justify-between space-y-3">
                   <div>
-                    <span className="text-xs font-bold uppercase text-slate-500 block mb-1">Aadhaar National ID</span>
+                    <span className="text-xs font-bold uppercase text-slate-500 dark:text-gray-400 block mb-1">Aadhaar National ID</span>
                     {selectedUser.driverProfile?.aadhaarUrl ? (
                       <a href={selectedUser.driverProfile.aadhaarUrl} target="_blank" rel="noreferrer" className="block relative aspect-video border rounded overflow-hidden bg-black group">
                         <img src={selectedUser.driverProfile.aadhaarUrl} alt="Aadhaar" className="w-full h-full object-contain" />
@@ -286,14 +286,14 @@ export default function AdminDriversPage() {
                     )}
                   </div>
                   
-                  <div className="text-slate-400 text-[11px] italic pt-5">
+                  <div className="text-slate-400 dark:text-gray-400 text-[11px] italic pt-5">
                     Permanent Government ID. No explicit expiration evaluation required.
                   </div>
 
                   <select 
                     value={reviewPayload.aadhaarStatus} 
                     onChange={(e) => setReviewPayload(p => ({ ...p, aadhaarStatus: e.target.value }))}
-                    className="w-full border rounded-md p-1.5 text-xs bg-white focus:outline-slate-900"
+                    className="w-full border rounded-md p-1.5 text-xs bg-white dark:bg-gray-800 dark:text-gray-400 focus:outline-slate-900"
                   >
                     <option value="pending">🕒 Pending</option>
                     <option value="approved">✅ Approve</option>
@@ -302,9 +302,9 @@ export default function AdminDriversPage() {
                 </div>
 
                 {/* RC BOOK CARD DOC WITH EXPIRY CONTROL */}
-                <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/50 flex flex-col justify-between space-y-3">
+                <div className="border border-slate-200 dark:border-gray-800 rounded-lg p-3 bg-slate-50/50 dark:bg-gray-800 flex flex-col justify-between space-y-3">
                   <div>
-                    <span className="text-xs font-bold uppercase text-slate-500 block mb-1">RC Book (Vehicle Doc)</span>
+                    <span className="text-xs font-bold uppercase text-slate-500 dark:text-gray-400 block mb-1">RC Book (Vehicle Doc)</span>
                     {selectedUser.driverProfile?.vehicleDocumentUrl ? (
                       <a href={selectedUser.driverProfile.vehicleDocumentUrl} target="_blank" rel="noreferrer" className="block relative aspect-video border rounded overflow-hidden bg-black group">
                         <img src={selectedUser.driverProfile.vehicleDocumentUrl} alt="RC" className="w-full h-full object-contain" />
@@ -315,21 +315,21 @@ export default function AdminDriversPage() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-semibold text-slate-600 flex items-center gap-1 mb-1">
+                    <label className="text-[11px] font-semibold text-slate-600 dark:text-gray-400 flex items-center gap-1 mb-1">
                       <Calendar className="h-3 w-3" /> Expiry Date
                     </label>
                     <input 
                       type="date"
                       value={reviewPayload.vehicleDocumentExpiry}
                       onChange={(e) => setReviewPayload(p => ({ ...p, vehicleDocumentExpiry: e.target.value }))}
-                      className="w-full text-xs border border-slate-200 p-1.5 rounded bg-white focus:outline-slate-900"
+                      className="w-full text-xs border border-slate-200 dark:border-gray-700 p-1.5 rounded bg-white dark:bg-gray-800 focus:outline-slate-900"
                     />
                   </div>
 
                   <select 
                     value={reviewPayload.vehicleDocumentStatus} 
                     onChange={(e) => setReviewPayload(p => ({ ...p, vehicleDocumentStatus: e.target.value }))}
-                    className="w-full border rounded-md p-1.5 text-xs bg-white focus:outline-slate-900"
+                    className="w-full border rounded-md p-1.5 text-xs bg-white dark:bg-gray-800 dark:text-gray-400 focus:outline-slate-900"
                   >
                     <option value="pending">🕒 Pending</option>
                     <option value="approved">✅ Approve</option>
@@ -357,11 +357,11 @@ export default function AdminDriversPage() {
                 </div>
               )}
 
-              <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 bg-white sticky bottom-0">
+              <div className="border-t border-slate-100 dark:border-gray-900 pt-4 flex justify-end gap-2 bg-white dark:bg-gray-900 sticky bottom-0">
                 <button 
                   type="button" 
                   onClick={() => setSelectedUser(null)} 
-                  className="border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-xs py-2 px-4 rounded-lg transition"
+                  className="border border-slate-200 dark:bg-gray-800 dark:text-gray-400 hover:bg-slate-50 text-slate-700 font-medium text-xs py-2 px-4 rounded-lg transition"
                 >
                   Cancel
                 </button>

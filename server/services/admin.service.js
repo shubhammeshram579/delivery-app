@@ -71,6 +71,8 @@ const getAllUsers = async (queryParams) => {
     isVerified,
   } = queryParams;
 
+  // console.log("status",status)
+
   const parsedPage = Math.max(1, parseInt(page, 10));
   const parsedLimit = Math.max(1, parseInt(limit, 10));
   const offset = (parsedPage - 1) * parsedLimit;
@@ -80,7 +82,7 @@ const getAllUsers = async (queryParams) => {
   };
 
   if (status) {
-    where.isActive = status === "active";
+    where.isActive = status === "true";
   }
 
   if (search) {
