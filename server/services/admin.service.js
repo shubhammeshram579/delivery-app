@@ -7,43 +7,102 @@ const {
 } = require("../middleware/error.middleware");
 const { Parser } = require("json2csv"); // install using: npm install json2csv
 
+// const getDashboardStats = async () => {
+//   const cacheKey = "admin:dashboard";
+//   const cached = await cacheGet(cacheKey);
+//   if (cached) return cached;
+
+//   const [
+//     totalUsers,
+//     totalDrivers,
+//     totalOrders,
+//     activeOrders,
+//     totalRevenue,
+//     pendingDriverVerification,
+//   ] = await Promise.all([
+//     User.count({ where: { role: "customer" } }),
+//     Driver.count(),
+//     Order.count(),
+//     Order.count({
+//       where: {
+//         status: { [Op.in]: ["pending", "accepted", "picked_up", "in_transit"] },
+//       },
+//     }),
+//     Payment.sum("amount", { where: { status: "success" } }),
+//     Driver.count({ where: { isVerified: false } }),
+//   ]);
+
+//   const data = {
+//     totalUsers,
+//     totalDrivers,
+//     totalOrders,
+//     activeOrders,
+//     totalRevenue: totalRevenue || 0,
+//     pendingDriverVerification,
+//   };
+
+//   await cacheSet(cacheKey, data, 300);
+//   return data;
+// };
+
+
 const getDashboardStats = async () => {
-  const cacheKey = "admin:dashboard";
-  const cached = await cacheGet(cacheKey);
-  if (cached) return cached;
+  // Use a clear, isolated Redis key
+  const cacheKey = "admin:dashboard:stats";
 
-  const [
-    totalUsers,
-    totalDrivers,
-    totalOrders,
-    activeOrders,
-    totalRevenue,
-    pendingDriverVerification,
-  ] = await Promise.all([
-    User.count({ where: { role: "customer" } }),
-    Driver.count(),
-    Order.count(),
-    Order.count({
-      where: {
-        status: { [Op.in]: ["pending", "accepted", "picked_up", "in_transit"] },
-      },
-    }),
-    Payment.sum("amount", { where: { status: "success" } }),
-    Driver.count({ where: { isVerified: false } }),
-  ]);
+  try {
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return typeof cached === "string" ? JSON.parse(cached) : cached;
+    }
+  } catch (err) {
+    console.error("Redis Read Error (falling back to DB):", err);
+  }
 
-  const data = {
-    totalUsers,
-    totalDrivers,
-    totalOrders,
-    activeOrders,
-    totalRevenue: totalRevenue || 0,
-    pendingDriverVerification,
-  };
+  try {
+    const [
+      totalUsers,
+      totalDrivers,
+      totalOrders,
+      activeOrders,
+      totalRevenue,
+      pendingDriverVerification,
+    ] = await Promise.all([
+      User.count({ where: { role: "customer" } }),
+      Driver.count(),
+      Order.count(),
+      Order.count({
+        where: {
+          status: { [Op.in]: ["pending", "accepted", "picked_up", "in_transit"] },
+        },
+      }),
+      Payment.sum("amount", { where: { status: "success" } }),
+      Driver.count({ where: { isVerified: false } }),
+    ]);
 
-  await cacheSet(cacheKey, data, 300);
-  return data;
+    const data = {
+      totalUsers: totalUsers || 0,
+      totalDrivers: totalDrivers || 0,
+      totalOrders: totalOrders || 0,
+      activeOrders: activeOrders || 0,
+      totalRevenue: totalRevenue || 0,
+      pendingDriverVerification: pendingDriverVerification || 0,
+    };
+
+    // Cache as JSON string for 300 seconds
+    try {
+      await cacheSet(cacheKey, JSON.stringify(data), 300);
+    } catch (err) {
+      console.error("Redis Write Error:", err);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error in getDashboardStats:", error);
+    throw error;
+  }
 };
+
 
 const getRevenueAnalytics = async (days) => {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -269,7 +328,7 @@ const getAllOrders = async (queryParams) => {
 
   const { count, rows } = await Order.findAndCountAll({
     where,
-    subQuery: false,
+    // subQuery: false,
     include: [
       {
         model: User,
