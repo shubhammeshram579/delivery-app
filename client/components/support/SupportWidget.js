@@ -43,7 +43,7 @@ export default function SupportWidget() {
 
       {/* Chat panel */}
       {open && (
-        <div className="card fixed nottom-16 sm:bottom-5 right-5 z-40 w-[90vw] max-w-sm h-[660px] sm:h-[560px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-in">
+        <div className="card fixed mb-16 sm:mb-0 bottom-5 right-5 z-40 w-[90vw] max-w-sm h-[660px] sm:h-[560px] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden animate-in">
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3.5 bg-primary-600 dark:bg-primary-600/50 text-white flex-shrink-0">
