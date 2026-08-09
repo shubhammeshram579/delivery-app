@@ -22,7 +22,7 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             # 1. Navigate to your app directory on VPS
-            cd ~/delivery-app
+            cd /root/delivery-app
 
             # 2. Pull the latest code from GitHub
             git pull origin main
