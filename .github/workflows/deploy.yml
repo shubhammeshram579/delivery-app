@@ -1,0 +1,37 @@
+name: Deploy Delivery App to Hostinger VPS
+
+on:
+  push:
+    branches:
+      - main     # Triggers deployment when you push to the 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script: |
+            # 1. Navigate to your app directory on VPS
+            cd ~/delivery-app
+
+            # 2. Pull the latest code from GitHub
+            git pull origin main
+
+            # 3. Rebuild and restart updated Docker containers
+            docker compose up -d --build --remove-orphans
+
+            # 4. Optional: Auto-run database migrations if new migrations exist
+            docker exec delivery_server npm run migrate || true
+
+            # 5. Clean up unused Docker images to save VPS disk space
+            docker image prune -f
