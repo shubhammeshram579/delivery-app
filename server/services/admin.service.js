@@ -7,44 +7,6 @@ const {
 } = require("../middleware/error.middleware");
 const { Parser } = require("json2csv"); // install using: npm install json2csv
 
-// const getDashboardStats = async () => {
-//   const cacheKey = "admin:dashboard";
-//   const cached = await cacheGet(cacheKey);
-//   if (cached) return cached;
-
-//   const [
-//     totalUsers,
-//     totalDrivers,
-//     totalOrders,
-//     activeOrders,
-//     totalRevenue,
-//     pendingDriverVerification,
-//   ] = await Promise.all([
-//     User.count({ where: { role: "customer" } }),
-//     Driver.count(),
-//     Order.count(),
-//     Order.count({
-//       where: {
-//         status: { [Op.in]: ["pending", "accepted", "picked_up", "in_transit"] },
-//       },
-//     }),
-//     Payment.sum("amount", { where: { status: "success" } }),
-//     Driver.count({ where: { isVerified: false } }),
-//   ]);
-
-//   const data = {
-//     totalUsers,
-//     totalDrivers,
-//     totalOrders,
-//     activeOrders,
-//     totalRevenue: totalRevenue || 0,
-//     pendingDriverVerification,
-//   };
-
-//   await cacheSet(cacheKey, data, 300);
-//   return data;
-// };
-
 
 const getDashboardStats = async () => {
   // Use a clear, isolated Redis key
