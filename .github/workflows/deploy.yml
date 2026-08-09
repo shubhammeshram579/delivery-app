@@ -24,6 +24,9 @@ jobs:
             # 1. Navigate to your app directory on VPS
             cd /root/delivery-app
 
+            # 2. Stash local changes (like modified docker-compose.yml) so git pull never fails
+            git stash
+
             # 2. Pull the latest code from GitHub
             git pull origin main
 
