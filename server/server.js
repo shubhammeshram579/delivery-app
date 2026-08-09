@@ -44,6 +44,10 @@ const matchingRoutes = require('./routes/matching.routes');
 const app = express();
 const server = http.createServer(app);
 
+// 1. MUST BE SET if running behind Nginx, Cloudflare, Heroku, Render, Vercel, etc.
+// Ensures req.ip gets the actual client IP instead of the internal reverse proxy IP
+app.set("trust proxy", 1);
+
 // ── Security & Middleware ──────────────────────────────────
 app.use(helmet());
 app.use(compression());
@@ -96,14 +100,48 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
 // Global rate limiter
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+// const limiter = rateLimit({
+//   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+//   max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   message: { success: false, message: 'Too many requests, please try again later.' },
+// });
+
+// ─────────────────────────────────────────────
+// Global Rate Limiter
+// ─────────────────────────────────────────────
+const globalLimiter = rateLimit({
+  // Reduce window to 1 minute so users recover quickly if they hit the cap
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 10) || 1 * 60 * 1000, 
+  
+  // Increase global max limit to 300-500 per minute for rich dashboards
+  max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 300, 
+
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, message: 'Too many requests, please try again later.' },
+
+  // 2. Dynamic Key Generator: Distinguish requests by User ID (if authenticated) instead of IP alone
+  keyGenerator: (req) => {
+    if (req.user && req.user.id) {
+      return `user_${req.user.id}`;
+    }
+    // Fallback to IP address for unauthenticated requests
+    return req.ip;
+  },
+
+  // 3. Skip static assets or health check endpoints
+  skip: (req) => {
+    return req.path === "/health" || req.path.startsWith("/uploads");
+  },
+
+  message: {
+    success: false,
+    message: "Too many requests from this device/account. Please wait a moment.",
+  },
 });
-app.use('/api', limiter);
+
+app.use('/api', globalLimiter);
 
 // ── Routes ────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
