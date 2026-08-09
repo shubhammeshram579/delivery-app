@@ -294,7 +294,8 @@
 // };
 
 
-
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Order, Driver } = require('../models');
 const logger = require('../utils/logger');
