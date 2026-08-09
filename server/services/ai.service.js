@@ -648,7 +648,7 @@ const { Order, Driver, Payment } = require('../models');
 const { Op } = require('sequelize');
 const logger = require('../utils/logger');
 
-console.log("ai api connection", process.env.GEMINI_API_KEY)
+// console.log("ai api connection", process.env.GEMINI_API_KEY)
 
 let _genAI = null;
 const getGeminiClient = () => {

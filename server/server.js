@@ -3,7 +3,7 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 require('express-async-errors');
 
-console.log("ai api connection server", process.env.GEMINI_API_KEY)
+// console.log("ai api connection server", process.env.GEMINI_API_KEY)
 
 
 const express = require('express');
