@@ -300,6 +300,8 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Order, Driver } = require('../models');
 const logger = require('../utils/logger');
 
+console.log("ai api connection", process.env.GEMINI_API_KEY)
+
 let _client = null;
 const getClient = () => {
   if (!_client) {
