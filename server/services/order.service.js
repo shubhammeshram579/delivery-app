@@ -759,6 +759,11 @@ const updateOrderStatus = async (
       await cacheDelByPattern(`orders:customer:${order.customerId}*`);
       await cacheDelByPattern(`orders:driver:*`);
 
+      // Clear driver earnings cache so frontend updates immediately
+      if (status === "delivered") {
+        await cacheDelByPattern(`earnings:${driver.id}*`);
+      }
+
       await sendNotification(order.customerId, {
         title: `Order ${status.replace(/_/g, " ")}`,
         body: `Your order #${order.orderNumber} is now ${status.replace(
@@ -984,8 +989,7 @@ const validateDriverOrder = async (
 const uploadDeliveryProof = async (orderId, driverUserId, file) => {
   const transaction = await sequelize.transaction();
 
-  // Scope variables needed post-commit
-  let updatedOrder = null;
+  let proofUrl = null;
   let orderData = null;
 
   try {
@@ -999,7 +1003,6 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       throw new ValidationError("Order must be in transit to upload proof");
     }
 
-    // ── ONLY REQUIRE DROP-OFF OTP FOR COURIER PACKAGES ──
     if (order.orderType === "delivery" && !order.deliveryOtpVerified) {
       throw new ValidationError("Receiver OTP verification required first");
     }
@@ -1010,15 +1013,6 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       );
     }
 
-    const existingEarning = await Earnings.findOne({
-      where: { orderId: order.id },
-      transaction,
-    });
-
-    if (existingEarning) {
-      throw new ValidationError("Earnings already processed");
-    }
-
     if (!file) {
       const errorMsg =
         order.orderType === "passenger"
@@ -1027,59 +1021,19 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       throw new ValidationError(errorMsg);
     }
 
-    const proofUrl = file?.path || null;
+    proofUrl = file?.path || null;
 
-    const platformFee = parseFloat(
-      (order.deliveryFee * PLATFORM_FEE_PERCENT).toFixed(2)
-    );
-    const netEarning = parseFloat(
-      (order.deliveryFee - platformFee).toFixed(2)
-    );
-
-    // Update Order
-    updatedOrder = await order.update(
-      {
-        deliveryProofImage: proofUrl,
-        status: "delivered",
-        driverStatus: "delivered",
-        deliveredAt: new Date(),
-      },
-      { transaction }
-    );
-
-    // Create Earnings
-    await Earnings.create(
-      {
-        driverId: driver.id,
-        orderId: order.id,
-        amount: order.deliveryFee,
-        platformFee,
-        netEarning,
-      },
-      { transaction }
-    );
-
-    // Update Driver
-    await driver.increment(
-      { totalDeliveries: 1, totalEarnings: netEarning },
-      { transaction }
-    );
-
-    await driver.update({ isAvailable: true }, { transaction });
-
-    // Snapshot lightweight values needed for post-commit tasks
+    // Snapshot values needed post-commit
     orderData = {
       id: order.id,
       orderNumber: order.orderNumber,
       customerId: order.customerId,
       orderType: order.orderType,
+      driverId: driver.id,
     };
 
-    // 1. COMMIT TRANSACTION
     await transaction.commit();
   } catch (error) {
-    // 🛑 BULLETPROOF ROLLBACK GUARD
-    // Sequelize sets transaction.finished to a string like 'commit' or 'rollback'
     const isFinished = 
       typeof transaction.isFinished === 'function'
         ? transaction.isFinished()
@@ -1089,18 +1043,22 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       try {
         await transaction.rollback();
       } catch (rollbackError) {
-        console.error("Rollback failed silently (transaction already handled):", rollbackError.message);
+        console.error("Rollback failed silently:", rollbackError.message);
       }
     }
-
-    // Re-throw the original DB/Validation error so your controller handles the actual issue
     throw error;
   }
 
-  // ── SAFE ZONE: Post-Commit Side Effects ──
-  try {
-    await cacheDelByPattern(`orders:*`);
+  // Delegate transition to updateOrderStatus which reliably processes status, earnings, and cache
+  const updatedOrder = await updateOrderStatus(
+    orderId,
+    driverUserId,
+    "delivered",
+    { deliveryProofImage: proofUrl }
+  );
 
+  // ── Post-Commit Notifications ──
+  try {
     const isPassenger = orderData.orderType === "passenger";
     const notificationTitle = isPassenger
       ? "🚗 Trip Completed Successfully!"
@@ -1123,7 +1081,7 @@ const uploadDeliveryProof = async (orderId, driverUserId, file) => {
       data: { orderId: orderData.id },
     });
   } catch (postCommitError) {
-    console.error("Post-commit tasks failed in uploadDeliveryProof:", postCommitError);
+    console.error("Post-commit notifications failed:", postCommitError);
   }
 
   return updatedOrder;

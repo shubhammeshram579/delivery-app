@@ -11,13 +11,26 @@ export default function EarningsPage() {
   useRequireAuth('driver');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchEarnings = useCallback(async (isManualRefresh = false) => {
+    try {
+      if (isManualRefresh) setRefreshing(true);
+      else setLoading(true);
+
+      const res = await driverService.getEarnings();
+      setData(res.data.data);
+    } catch (err) {
+      console.error('Failed to load earnings:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    driverService.getEarnings()
-      .then((res) => setData(res.data.data))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+    fetchEarnings();
+  }, [fetchEarnings]);
 
   if (loading) return <DashboardLayout role="driver" title="Earnings"><LoadingSpinner /></DashboardLayout>;
 

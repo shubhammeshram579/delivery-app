@@ -71,7 +71,15 @@ export const driverService = {
   getProfile:    ()            => api.get('/drivers/profile'),
   // Register driver profile on first login
   registerProfile: (data)      => api.post('/drivers/register', data),
-  getEarnings:   ()            => api.get('/drivers/earnings'),
+  // getEarnings:   ()            => api.get('/drivers/earnings'),
+  getEarnings: () =>
+  api.get('/drivers/earnings', {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    },
+  }),
   toggleAvailability: (isAvailable) => api.patch('/drivers/availability', { isAvailable }),
   updateProfile: (data) => api.put('/drivers/profile', data, {
     headers: {
