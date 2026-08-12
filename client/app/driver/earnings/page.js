@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState ,useCallback} from 'react';
 import { useRequireAuth } from '../../../components/shared/AuthGuard';
 import { DashboardLayout } from '../../../components/shared/Layout';
 import { StatCard, LoadingSpinner, EmptyState } from '../../../components/ui';
