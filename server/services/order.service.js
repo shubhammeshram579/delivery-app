@@ -229,13 +229,23 @@ const createOrder = async (customerId, orderData) => {
     }
 
     if (orderType === "delivery") {
-      if (!orderData.receiverName) throw new ValidationError(400, "Receiver name required");
-      if (!orderData.receiverPhone) throw new ValidationError(400, "Receiver phone required");
-    } else if (orderType === "passenger") {
-      if (!orderData.passengerCount || orderData.passengerCount < 1 || orderData.passengerCount > 4) {
-        throw new ValidationError(400, "Passenger count must be between 1 and 4");
-      }
+    if (!orderData.receiverName) throw new ValidationError(400, "Receiver name required");
+    if (!orderData.receiverPhone) throw new ValidationError(400, "Receiver phone required");
+    
+    // Validate receiver email for delivery orders
+    if (!orderData.receiverEmail) {
+      throw new ValidationError(400, "Receiver email required");
     }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(orderData.receiverEmail)) {
+      throw new ValidationError(400, "Must be a valid email address");
+    }
+  } else if (orderType === "passenger") {
+    if (!orderData.passengerCount || orderData.passengerCount < 1 || orderData.passengerCount > 4) {
+      throw new ValidationError(400, "Passenger count must be between 1 and 4");
+    }
+  }
 
     // 2. Route & Pricing calculation
     let routeInfo;
