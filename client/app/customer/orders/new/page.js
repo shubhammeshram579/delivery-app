@@ -505,6 +505,36 @@ export default function NewOrderPage() {
     }
   }, [category, setValue, watch]);
 
+
+
+  // Geocode address strings into coordinates
+const handleAIAddressGeocode = useCallback((addressText, isPickup) => {
+  if (!addressText || !window.google?.maps?.Geocoder) return;
+
+  const geocoder = new window.google.maps.Geocoder();
+  geocoder.geocode({ address: addressText, componentRestrictions: { country: "in" } }, (results, status) => {
+    if (status === "OK" && results[0]) {
+      const location = results[0].geometry.location;
+      const coords = { lat: location.lat(), lng: location.lng() };
+
+      if (isPickup) {
+        pickupCoordsRef.current = coords;
+        setPickupCoords(coords);
+      } else {
+        dropCoordsRef.current = coords;
+        setDropCoords(coords);
+      }
+
+      // Draw map route if both coordinates exist
+      const pickup = isPickup ? coords : pickupCoordsRef.current;
+      const drop = isPickup ? dropCoordsRef.current : coords;
+      if (pickup && drop && drawRoute) {
+        drawRoute(pickup, drop);
+      }
+    }
+  });
+}, [drawRoute]);
+
   // ─────────────────────────────────────────────────────
   // Submit
   //
@@ -563,7 +593,7 @@ export default function NewOrderPage() {
           <div className="lg:col-span-3 space-y-4 order-2 lg:order-1">
             <ErrorAlert message={serverError} />
 
-            <AIBookingAssistant
+            {/* <AIBookingAssistant
               onConfirm={(data) => {
                 // Prefill your existing form fields
                 setValue("pickupAddress", data.pickup || "");
@@ -571,6 +601,42 @@ export default function NewOrderPage() {
                 setValue("packageDescription", data.item || "");
                 setValue("packageWeight", data.weight_kg || 1);
                 // You can also auto-select vehicle if your form supports it
+              }}
+            /> */}
+
+
+            <AIBookingAssistant
+              onConfirm={(data) => {
+                // 1. Update form fields with validation flags
+                if (data.pickup) {
+                  setValue("pickupAddress", data.pickup, { shouldValidate: true, shouldDirty: true });
+                  handleAIAddressGeocode(data.pickup, true);
+                }
+                
+                if (data.drop) {
+                  setValue("dropAddress", data.drop, { shouldValidate: true, shouldDirty: true });
+                  handleAIAddressGeocode(data.drop, false);
+                }
+
+                if (data.item) {
+                  setValue("packageDescription", data.item, { shouldValidate: true });
+                }
+
+                if (data.weight_kg) {
+                  setValue("packageWeight", Number(data.weight_kg), { shouldValidate: true });
+                }
+
+                // Pass lat/lng directly if AIBookingAssistant already returns them
+                if (data.pickupLat && data.pickupLng) {
+                  const coords = { lat: data.pickupLat, lng: data.pickupLng };
+                  pickupCoordsRef.current = coords;
+                  setPickupCoords(coords);
+                }
+                if (data.dropLat && data.dropLng) {
+                  const coords = { lat: data.dropLat, lng: data.dropLng };
+                  dropCoordsRef.current = coords;
+                  setDropCoords(coords);
+                }
               }}
             />
 
