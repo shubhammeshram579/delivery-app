@@ -1,40 +1,59 @@
-name: Deploy Delivery App to Hostinger VPS
+name: Build DeliverPro Backend & Deploy to EC2
 
 on:
   push:
     branches:
-      - main     # Triggers deployment when you push to the 'main' branch
+      - main  # Runs automatically on push to main branch
 
 jobs:
-  deploy:
+  # JOB 1: Build Docker Image on GitHub Actions (Free RAM/CPU) and push to Docker Hub
+  build-and-push:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy to VPS via SSH
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}  # Reused token from Pushtaklekhan
+
+      - name: Build and Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/deliverpro-backend:latest
+
+  # JOB 2: Trigger EC2 via SSH to Pull Pre-built Image & Restart Container
+  deploy-ec2:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # 1. Navigate to your app directory on VPS
-            cd /root/delivery-app
-
-            # 2. Stash local changes (like modified docker-compose.yml) so git pull never fails
-            git stash
-
-            # 2. Pull the latest code from GitHub
+            # 1. Navigate to your DeliverPro backend directory on EC2
+            cd ~/deliverpro
+            
+            # 2. Fetch updated docker-compose or config files safely
+            git reset --hard HEAD
             git pull origin main
-
-            # 3. Rebuild and restart updated Docker containers
-            docker compose up -d --build --remove-orphans
-
-            # 4. Optional: Auto-run database migrations if new migrations exist
+            
+            # 3. Pull the pre-built backend image from Docker Hub
+            docker compose pull server
+            
+            # 4. Restart server container without compiling on EC2
+            docker compose up -d server
+            
+            # 5. Run database migrations inside the server container
             docker exec delivery_server npm run migrate || true
-
-            # 5. Clean up unused Docker images to save VPS disk space
+            
+            # 6. Clean unused Docker image layers to save disk space
             docker image prune -f

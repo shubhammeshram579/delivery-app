@@ -57,6 +57,8 @@ const allowedOrigins = [
   'http://localhost',        // HTTP Nginx
   'http://localhost:3000',   // Next.js direct dev
   'http://localhost:5000',   // Express direct dev
+  'https://deliverpro.spmeshram.tech',
+  'https://deliverpro.vercel.app',
   process.env.CLIENT_URL,    // Production URL from .env
 ].filter(Boolean);
 
