@@ -40,7 +40,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             # 1. Navigate to your DeliverPro backend directory on EC2
-            cd ~/deliverpro
+            cd ~/delivery-app
             
             # 2. Fetch updated docker-compose or config files safely
             git reset --hard HEAD
