@@ -331,7 +331,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      DB_SYNC: "false"
+      DB_SYNC: "true"
 
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
