@@ -311,7 +311,7 @@ const getClient = () => {
   return _client;
 };
 
-const MODEL = 'gemini-2.5-flash';
+const MODEL = 'gemini-3.8-flash';
 
 // Expanded & modernized regex patterns
 const FORCE_ESCALATE_PATTERNS = [
