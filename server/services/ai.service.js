@@ -660,7 +660,9 @@ const getGeminiClient = () => {
 };
 
 // const MODEL_NAME = 'gemini-2.5-flash';
-const MODEL_NAME = 'gemini-3.8-flash' || 'gemini-3.1-flash-lite';
+// const MODEL_NAME = 'gemini-3.8-flash' || 'gemini-3.1-flash-lite';
+// const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+const MODEL_NAME = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 // ── Tools Schema Map (Converted to Gemini/OpenAPI format) ─────
 const ALL_TOOLS = [
@@ -855,6 +857,55 @@ const executeTool = async (name, input) => {
 
 // // ── Core agentic loop adapted for Gemini ──────────────────
 
+// const runAgent = async (system, userMessage, tools = [], maxIterations = 5) => {
+//   const ai = getGeminiClient();
+//   const geminiTools = tools.length > 0 ? [{ functionDeclarations: tools }] : [];
+//   const model = ai.getGenerativeModel({
+//     model: MODEL_NAME,
+//     systemInstruction: system,
+//     tools: geminiTools,
+//   });
+
+//   const contents = [{ role: 'user', parts: [{ text: userMessage }] }];
+//   let iteration = 0;
+
+//   while (iteration < maxIterations) {
+//     iteration++;
+//     const result = await model.generateContent({ contents });
+//     const response = result.response;
+    
+//     // Added parentheses () to actually execute the SDK method
+//     const functionCalls = response.functionCalls(); 
+
+//     if (!functionCalls || functionCalls.length === 0) {
+//       return { success: true, response: response.text(), iterations: iteration };
+//     }
+
+//     // Save model's tool request turn to the conversational history
+//     contents.push(response.candidates[0].content);
+
+//     const functionResponseParts = [];
+//     for (const call of functionCalls) {
+//       const toolResult = await executeTool(call.name, call.args);
+//       functionResponseParts.push({
+//         functionResponse: {
+//           name: call.name,
+//           response: { content: toolResult }
+//         }
+//       });
+//     }
+
+//     // Append function execution logs to back-and-forth context
+//     contents.push({
+//       role: 'user',
+//       parts: functionResponseParts
+//     });
+//   }
+
+//   return { success: false, response: 'Could not complete request', iterations: iteration };
+// };
+
+
 const runAgent = async (system, userMessage, tools = [], maxIterations = 5) => {
   const ai = getGeminiClient();
   const geminiTools = tools.length > 0 ? [{ functionDeclarations: tools }] : [];
@@ -872,14 +923,13 @@ const runAgent = async (system, userMessage, tools = [], maxIterations = 5) => {
     const result = await model.generateContent({ contents });
     const response = result.response;
     
-    // Added parentheses () to actually execute the SDK method
     const functionCalls = response.functionCalls(); 
 
     if (!functionCalls || functionCalls.length === 0) {
       return { success: true, response: response.text(), iterations: iteration };
     }
 
-    // Save model's tool request turn to the conversational history
+    // Save model's tool request turn to history
     contents.push(response.candidates[0].content);
 
     const functionResponseParts = [];
@@ -893,7 +943,7 @@ const runAgent = async (system, userMessage, tools = [], maxIterations = 5) => {
       });
     }
 
-    // Append function execution logs to back-and-forth context
+    // Pass tool execution outputs as 'user' role
     contents.push({
       role: 'user',
       parts: functionResponseParts

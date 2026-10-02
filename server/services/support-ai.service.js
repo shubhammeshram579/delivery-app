@@ -293,14 +293,11 @@
 //   detectSentiment,
 // };
 
-
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { Order, Driver } = require('../models');
 const logger = require('../utils/logger');
-
-// console.log("ai api connection", process.env.GEMINI_API_KEY)
 
 let _client = null;
 const getClient = () => {
@@ -311,14 +308,15 @@ const getClient = () => {
   return _client;
 };
 
-const MODEL = 'gemini-3.8-flash' || 'gemini-3.1-flash-lite';
+// Use valid production model defaults
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 // Expanded & modernized regex patterns
 const FORCE_ESCALATE_PATTERNS = [
   /accident/i, /injur/i, /hurt/i, /hospital/i,
   /fraud/i, /scam/i, /stolen/i, /theft/i,
   /didn'?t receive/i, /never (got|arrived|received)/i,
-  /wrong (item|order|product|package|delivery)/i, /delivered wrong/i, // Added missing variations
+  /wrong (item|order|product|package|delivery)/i, /delivered wrong/i,
   /damaged/i, /broken/i, /spoiled/i,
   /legal/i, /lawyer/i, /police/i, /sue/i,
   /money deducted/i, /charged.*not.*deliver/i, /double charged/i,
@@ -432,132 +430,6 @@ const executeTool = async (name, input) => {
   }
 };
 
-const processSupportMessage = async ({ message, userType, conversationHistory = [] }) => {
-  // 1. Mandatory Regex Pre-Check for Escalation
-  if (shouldForceEscalate(message)) {
-    return {
-      resolved: false,
-      escalation: {
-        category: guessCategory(message),
-        priority: 'high',
-        subject: message.slice(0, 60),
-        summary: `User message flagged for mandatory human review: "${message}"`,
-      },
-      sentiment: detectSentiment(message),
-    };
-  }
-
-  const systemInstruction = userType === 'driver' ? DRIVER_SYSTEM_PROMPT : CUSTOMER_SYSTEM_PROMPT;
-  const ai = getClient();
-
-  const modelInstance = ai.getGenerativeModel({
-    model: MODEL,
-    systemInstruction,
-    tools: GEMINI_TOOLS,
-  });
-
-  // Map incoming history cleanly
-  const contents = [
-    ...conversationHistory.map((m) => ({
-      role: m.senderType === 'ai' ? 'model' : 'user',
-      parts: [{ text: m.message }],
-    })),
-    { role: 'user', parts: [{ text: message }] },
-  ];
-
-  let iterations = 0;
-  const maxIterations = 4;
-
-  while (iterations < maxIterations) {
-    iterations++;
-
-    try {
-      const result = await modelInstance.generateContent({ contents });
-      const response = await result.response;
-      const functionCalls = response.functionCalls;
-
-      if (functionCalls && functionCalls.length > 0) {
-        const call = functionCalls[0];
-
-        if (call.name === 'escalate_to_human') {
-          // Safeguard escalation arguments against missing properties
-          const args = call.args || {};
-          return {
-            resolved: false,
-            escalation: {
-              category: args.category || guessCategory(message),
-              priority: args.priority || 'high',
-              subject: args.subject || message.slice(0, 60),
-              summary: args.summary || message,
-            },
-            sentiment: detectSentiment(message),
-          };
-        }
-
-        const toolResultData = await executeTool(call.name, call.args);
-
-        // Append assistant's function call turn
-        contents.push({
-          role: 'model',
-          parts: [{ functionCall: call }],
-        });
-
-        // Append tool execution response turn
-        contents.push({
-          role: 'user',
-          parts: [
-            {
-              functionResponse: {
-                name: call.name,
-                response: toolResultData,
-              },
-            },
-          ],
-        });
-
-        continue;
-      }
-
-      const textReply = response.text();
-      return {
-        resolved: true,
-        reply: textReply,
-        sentiment: detectSentiment(message),
-      };
-    } catch (err) {
-      if (logger && logger.error) {
-        logger.error('[Support AI Service Error]:', err);
-      } else {
-        console.error('[Support AI Service Error]:', err);
-      }
-
-      // Safe Fallback to Human Escalation if AI execution fails in production
-      return {
-        resolved: false,
-        escalation: {
-          category: guessCategory(message),
-          priority: 'high',
-          subject: message.slice(0, 60),
-          summary: `Automatic fallback escalation due to AI processing error. Original message: "${message}"`,
-        },
-        sentiment: detectSentiment(message),
-      };
-    }
-  }
-
-  // Fallback if iteration cap is reached
-  return {
-    resolved: false,
-    escalation: {
-      category: guessCategory(message),
-      priority: 'normal',
-      subject: message.slice(0, 60),
-      summary: message,
-    },
-    sentiment: detectSentiment(message),
-  };
-};
-
 const guessCategory = (text) => {
   const lower = text.toLowerCase();
   if (/refund|money back/.test(lower)) return 'refund';
@@ -592,7 +464,131 @@ Do NOT attempt to resolve these yourself. Always call escalate_to_human immediat
 
 Be warm, brief, and helpful. If you can answer directly, do so in 2-3 sentences.`;
 
-const DRIVER_SYSTEM_PROMPT = `You are a helpful support assistant for DeliverPro drivers...`;
+const DRIVER_SYSTEM_PROMPT = `You are a helpful support assistant for DeliverPro drivers.
+Help drivers with account status, navigation issues, earnings questions, and order assignments.
+If a driver reports an accident, fraud, or account suspension, trigger escalate_to_human immediately.`;
+
+const processSupportMessage = async ({ message, userType, conversationHistory = [] }) => {
+  // 1. Mandatory Regex Pre-Check for Escalation
+  if (shouldForceEscalate(message)) {
+    return {
+      resolved: false,
+      escalation: {
+        category: guessCategory(message),
+        priority: 'high',
+        subject: message.slice(0, 60),
+        summary: `User message flagged for mandatory human review: "${message}"`,
+      },
+      sentiment: detectSentiment(message),
+    };
+  }
+
+  const systemInstruction = userType === 'driver' ? DRIVER_SYSTEM_PROMPT : CUSTOMER_SYSTEM_PROMPT;
+  const ai = getClient();
+
+  const modelInstance = ai.getGenerativeModel({
+    model: MODEL,
+    systemInstruction,
+    tools: GEMINI_TOOLS,
+  });
+
+  // Map incoming conversation history cleanly
+  const contents = [
+    ...conversationHistory.map((m) => ({
+      role: m.senderType === 'ai' ? 'model' : 'user',
+      parts: [{ text: m.message }],
+    })),
+    { role: 'user', parts: [{ text: message }] },
+  ];
+
+  let iterations = 0;
+  const maxIterations = 4;
+
+  while (iterations < maxIterations) {
+    iterations++;
+
+    try {
+      const result = await modelInstance.generateContent({ contents });
+      const response = await result.response;
+      
+      // ✅ Fixed: execute as a function call
+      const functionCalls = response.functionCalls();
+
+      if (functionCalls && functionCalls.length > 0) {
+        const call = functionCalls[0];
+
+        if (call.name === 'escalate_to_human') {
+          const args = call.args || {};
+          return {
+            resolved: false,
+            escalation: {
+              category: args.category || guessCategory(message),
+              priority: args.priority || 'high',
+              subject: args.subject || message.slice(0, 60),
+              summary: args.summary || message,
+            },
+            sentiment: detectSentiment(message),
+          };
+        }
+
+        const toolResultData = await executeTool(call.name, call.args);
+
+        // Save model's function request turn
+        contents.push(response.candidates[0].content);
+
+        // ✅ Fixed: Append user function response turn using role 'user'
+        contents.push({
+          role: 'user',
+          parts: [
+            {
+              functionResponse: {
+                name: call.name,
+                response: toolResultData,
+              },
+            },
+          ],
+        });
+
+        continue;
+      }
+
+      const textReply = response.text();
+      return {
+        resolved: true,
+        reply: textReply,
+        sentiment: detectSentiment(message),
+      };
+    } catch (err) {
+      if (logger && logger.error) {
+        logger.error('[Support AI Service Error]:', err);
+      } else {
+        console.error('[Support AI Service Error]:', err);
+      }
+
+      return {
+        resolved: false,
+        escalation: {
+          category: guessCategory(message),
+          priority: 'high',
+          subject: message.slice(0, 60),
+          summary: `Automatic fallback escalation due to AI processing error. Original message: "${message}"`,
+        },
+        sentiment: detectSentiment(message),
+      };
+    }
+  }
+
+  return {
+    resolved: false,
+    escalation: {
+      category: guessCategory(message),
+      priority: 'normal',
+      subject: message.slice(0, 60),
+      summary: message,
+    },
+    sentiment: detectSentiment(message),
+  };
+};
 
 module.exports = {
   processSupportMessage,
