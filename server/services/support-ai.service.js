@@ -504,7 +504,7 @@ const processSupportMessage = async ({ message, userType, conversationHistory = 
 
         // Append tool execution response turn
         contents.push({
-          role: 'function',
+          role: 'user',
           parts: [
             {
               functionResponse: {

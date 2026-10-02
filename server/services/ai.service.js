@@ -895,7 +895,7 @@ const runAgent = async (system, userMessage, tools = [], maxIterations = 5) => {
 
     // Append function execution logs to back-and-forth context
     contents.push({
-      role: 'function',
+      role: 'user',
       parts: functionResponseParts
     });
   }
